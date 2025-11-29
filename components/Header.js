@@ -3,38 +3,55 @@ export default function Header() {
     <header
       style={{
         width: "100%",
-        background: "#ffffff",
-        borderRadius: "0 0 16px 16px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-        padding: "12px 24px",
+        background: "white",
+        padding: "16px 24px",
+        borderBottom: "3px solid #FDD835", // thin yellow underline
+        boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
         display: "flex",
-        justifyContent: "space-between",
         alignItems: "center",
+        justifyContent: "space-between",
+        borderRadius: "0 0 12px 12px", // soft cozy curve
         position: "sticky",
         top: 0,
-        zIndex: 100,
-        borderBottom: "4px solid #FDD835",
+        zIndex: 999,
       }}
     >
-      {/* Left: Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        <img
-          src="/logo.png"
-          alt="YardHub Logo"
-          style={{ width: "50px", height: "50px", borderRadius: "10px" }}
-        />
-        <h1 style={{ fontSize: "1.4rem", margin: 0 }}>YardHub</h1>
+      {/* LEFT SIDE — LOGO + TAGLINE */}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <h2
+          style={{
+            margin: 0,
+            fontWeight: "700",
+            fontSize: "1.6rem",
+            letterSpacing: "-0.5px",
+          }}
+        >
+          YardHub
+        </h2>
+
+        <span
+          style={{
+            marginTop: "2px",
+            fontSize: "0.9rem",
+            opacity: 0.7,
+            fontStyle: "italic",
+          }}
+        >
+          Welcome to the neighborhood.
+        </span>
       </div>
 
-      {/* Right: 6 glossy mini pins */}
-      <div style={{ display: "flex", gap: "12px" }}>
-        <img src="/pin-yellow.png"  style={{ width: 24, height: 24 }} />
-        <img src="/pin-red.png"     style={{ width: 24, height: 24 }} />
-        <img src="/pin-blue.png"    style={{ width: 24, height: 24 }} />
-        <img src="/pin-green.png"   style={{ width: 24, height: 24 }} />
-        <img src="/pin-purple.png"  style={{ width: 24, height: 24 }} />
-        <img src="/pin-orange.png"  style={{ width: 24, height: 24 }} />
-      </div>
+      {/* RIGHT SIDE — PIN NAV */}
+      <nav style={{ display: "flex", gap: "16px" }}>
+        <img src="/pins/yellow.png" alt="Yard Sales" style={{ width: 28 }} />
+        <img src="/pins/red.png" alt="Marketplace" style={{ width: 28 }} />
+        <img src="/pins/blue.png" alt="Free Stuff" style={{ width: 28 }} />
+        <img src="/pins/green.png" alt="Businesses" style={{ width: 28 }} />
+        <img src="/pins/purple.png" alt="Events" style={{ width: 28 }} />
+
+        {/* Your bulletin pin (the orange one) */}
+        <img src="/pins/orange.png" alt="Bulletin Board" style={{ width: 28 }} />
+      </nav>
     </header>
   );
 }
