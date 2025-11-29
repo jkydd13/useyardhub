@@ -8,69 +8,65 @@ export default function Home() {
       }}
     >
       {/* NAV BAR */}
-      <nav
-        style={{
-          width: "100%",
-          padding: "1rem 2rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: "#FDD835", // YardHub Yellow
-          position: "sticky",
-          top: 0,
-          boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-          zIndex: 10,
-        }}
-      >
-        {/* Logo Placeholder - replace later with <img src="/logo.png" /> */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "1rem",
-          }}
-        >
-          <div
-            style={{
-              width: 45,
-              height: 45,
-              background: "#fff",
-              borderRadius: "50%",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              fontWeight: "bold",
-              color: "#F44336", // YardHub Red
-              border: "2px solid #fff",
-            }}
-          >
-            YH
-          </div>
-          <span style={{ fontSize: "1.4rem", fontWeight: "700" }}>YardHub</span>
-        </div>
+<nav
+  style={{
+    width: "100%",
+    padding: "1rem 2rem",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    background: "#FDD835", // YardHub Yellow
+    position: "sticky",
+    top: 0,
+    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+    zIndex: 10,
+  }}
+>
+  {/* REAL LOGO */}
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "1rem",
+    }}
+  >
+    <img
+      src="/logo.png"
+      alt="YardHub Logo"
+      style={{
+        width: "45px",
+        height: "45px",
+        borderRadius: "8px",
+        objectFit: "contain",
+        background: "#fff",
+        padding: "4px",
+      }}
+    />
+    <span style={{ fontSize: "1.4rem", fontWeight: "700" }}>YardHub</span>
+  </div>
 
-        {/* Nav links */}
-        <div
-          style={{
-            display: "flex",
-            gap: "1.5rem",
-            fontSize: "1rem",
-          }}
-        >
-          <a href="#" style={{ textDecoration: "none", color: "#000" }}>
-            Home
-          </a>
-          <a href="#download" style={{ textDecoration: "none", color: "#000" }}>
-            Download
-          </a>
-          <a href="#about" style={{ textDecoration: "none", color: "#000" }}>
-            About
-          </a>
-          <a href="#contact" style={{ textDecoration: "none", color: "#000" }}>
-            Contact
-          </a>
-        </div>
-      </nav>
+  {/* Nav links */}
+  <div
+    style={{
+      display: "flex",
+      gap: "1.5rem",
+      fontSize: "1rem",
+    }}
+  >
+    <a href="#" style={{ textDecoration: "none", color: "#000" }}>
+      Home
+    </a>
+    <a href="#download" style={{ textDecoration: "none", color: "#000" }}>
+      Download
+    </a>
+    <a href="#about" style={{ textDecoration: "none", color: "#000" }}>
+      About
+    </a>
+    <a href="#contact" style={{ textDecoration: "none", color: "#000" }}>
+      Contact
+    </a>
+  </div>
+</nav>
 
       {/* HERO SECTION */}
       <section
