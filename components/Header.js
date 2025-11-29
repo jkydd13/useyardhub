@@ -32,7 +32,7 @@ export default function Header() {
         <nav style={{
           display: "flex",
           alignItems: "center",
-          gap: "20px"
+          gap: "0.6rem"
         }}>
           <img src="/pins/yellow.png" alt="Yard Sales" style={{ width: "28px" }} />
           <img src="/pins/red.png" alt="Marketplace" style={{ width: "28px" }} />
