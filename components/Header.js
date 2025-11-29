@@ -3,7 +3,7 @@ export default function Header() {
     <header style={{
       width: "100%",
       background: "white",
-      padding: "18px 24px",
+      padding: "16px 24px 18px 24px",
       borderRadius: "0 0 12px 12px",
       boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
       borderBottom: "3px solid #FDD835"
@@ -15,15 +15,15 @@ export default function Header() {
         alignItems: "center",
         justifyContent: "space-between"
       }}>
-        
+
         {/* LEFT SIDE — LOGO */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <img
             src="/logo.png"
             alt="YardHub Logo"
-            style={{ width: "42px", height: "42px" }}
+            style={{ width: "40px", height: "40px", marginTop: "1px" }}
           />
-          <h2 style={{ margin: 0, fontSize: "1.4rem", fontWeight: "600" }}>
+          <h2 style={{ margin: 0, fontSize: "1.35rem", fontWeight: "600", marginTop: "1px" }}>
             YardHub
           </h2>
         </div>
@@ -32,7 +32,8 @@ export default function Header() {
         <nav style={{
           display: "flex",
           alignItems: "center",
-          gap: "0.2rem"
+          gap: "0.3rem",
+          paddingRight: "10px"
         }}>
           <img src="/pins/yellow.png" alt="Yard Sales" style={{ width: "28px" }} />
           <img src="/pins/red.png" alt="Marketplace" style={{ width: "28px" }} />
