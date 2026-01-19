@@ -11,3 +11,147 @@ body {
   font-family: Arial, sans-serif;
   color: #333;
 }
+/* ================================
+   YardHub Global UI Elements
+   ================================ */
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px 26px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 14px; /* KEY: prevents squish */
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card h3 {
+  margin: 0;
+  padding-bottom: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  border-bottom: 1px solid #f0ede7; /* subtle separator */
+}
+
+.card p {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: #444;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* ================================
+   YardHub Category Accent Lines
+   (CANONICAL COLORS — LOCKED)
+   ================================ */
+
+/* 🟡 Yard Sales */
+.category-yard-sales {
+  border-top: 3px solid #FDD835;
+}
+
+/* 🔴 Marketplace */
+.category-marketplace {
+  border-top: 3px solid #F44336;
+}
+
+/* 🔵 Free Stuff */
+.category-free-stuff {
+  border-top: 3px solid #2196F3;
+}
+
+/* 🟢 Businesses */
+.category-businesses {
+  border-top: 3px solid #4CAF50;
+}
+
+/* 🟣 Events */
+.category-events {
+  border-top: 3px solid #9C27B0;
+}
+
+/* 🚨 Urgent / Get Help */
+.category-urgent {
+  border-top: 3px solid #D32F2F;
+}
+
+/* 🟠 Bulletin Board */
+.category-bulletin {
+  border-top: 3px solid #FF9800;
+}
+
+/* ⚪ Services (Neutral, Always Gray) */
+.category-services {
+  border-top: 3px solid #E0E0E0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.primaryButton {
+  background: #f57c00;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.secondaryButton {
+  background: white;
+  border: 2px solid #4caf50;
+  color: #4caf50;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filterChip {
+  background: white;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.linkButton {
+  background: none;
+  color: #f57c00;
+  font-weight: 600;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.categoryTile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  min-height: 78px; /* 👈 skinnier */
+  padding: 12px 16px; /* 👈 less vertical bulk */
+
+  font-size: 16.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+a .categoryTile {
+  cursor: pointer;
+}
+
+a .categoryTile:hover {
+  transform: translateY(-2px);
+}
+
