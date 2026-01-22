@@ -204,6 +204,7 @@ a .categoryTile:hover {
 ========================= */
 
 .header {
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -211,7 +212,7 @@ a .categoryTile:hover {
   /* THIS fixes the icon falling off */
   padding: 12px 16px;
 
-  background: #ffffff;
+  background: #fff;
   border-bottom: 1px solid rgba(0,0,0,0.08);
 
   /* Prevent overflow issues */
@@ -223,7 +224,7 @@ a .categoryTile:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  min-width: 0; /* VERY IMPORTANT */
 }
 
 /* Center: category nav */
@@ -247,14 +248,29 @@ a .categoryTile:hover {
   /* 🔒 keeps it inside the bar */
   flex-shrink: 0;
 }
+
 .accountIcon {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
-  display: flex;
+  display: grid;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
+
+.pins {
+  display: flex;
+  align-items: center;
+  gap: 4px;              /* 👈 squish pins */
+  max-width: 140px;      /* 👈 prevents takeover */
+  overflow: hidden;
+}
+
+.pins span {
+  font-size: 14px;       /* slightly smaller on mobile */
+}
+
 
 /* =========================
    YardHub Auth Screens
