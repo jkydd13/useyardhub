@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 
-
+/* =========================
+   Pin sizing (safe for iOS)
+========================= */
 const pinSlot = {
   width: "26px",
-  height: "36px",
+  height: "34px", // 👈 shorter to avoid clipping
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
 };
 
 const pinImage = {
-  maxWidth: "32px",
-  maxHeight: "32px",
+  maxWidth: "24px",
+  maxHeight: "24px",
   objectFit: "contain",
   display: "block",
 };
@@ -20,25 +22,18 @@ const pinImage = {
 export default function Header() {
   const [accountOpen, setAccountOpen] = useState(false);
   const isLoggedIn = false;
-
-  // ✅ NEW: ref for click-outside detection
   const accountRef = useRef(null);
 
-  // ✅ NEW: close dropdown when clicking outside
+  /* Close dropdown on outside click */
   useEffect(() => {
     function handleClickOutside(event) {
-      if (
-        accountRef.current &&
-        !accountRef.current.contains(event.target)
-      ) {
+      if (accountRef.current && !accountRef.current.contains(event.target)) {
         setAccountOpen(false);
       }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   return (
@@ -69,6 +64,7 @@ export default function Header() {
             gap: "10px",
             textDecoration: "none",
             color: "inherit",
+            flexShrink: 0,
           }}
         >
           <img
@@ -81,7 +77,7 @@ export default function Header() {
           </h2>
         </Link>
 
-        {/* RIGHT — PINS + ACCOUNT ICON */}
+        {/* RIGHT — PINS + ACCOUNT */}
         <div
           style={{
             display: "flex",
@@ -90,62 +86,70 @@ export default function Header() {
             marginLeft: "auto",
           }}
         >
-          {/* PINS */}
-          <nav
+          {/* PIN RAIL (NO CLIPPING) */}
+          <div
             style={{
-            display: "flex",
-            alignItems: "center",
-
-            gap: "2px",          // tighter than before
-            maxWidth: "120px",   // 🔒 HARD STOP
-            overflow: "hidden",  // 🔒 prevents icon push
-            flexShrink: 1,       // 🔒 allow compression
-          }}
-        >
-            <div style={pinSlot}>
-              <img
-                src="/pins/urgent.png"
-                alt="Urgent"
-                style={{
-                  ...pinImage,
-                  transform: "translateY(-2.5px)", // optical correction
-                }}
-              />
-            </div>
-            <div style={pinSlot}>
-              <img src="/pins/yellow.png" alt="Yard Sales" style={pinImage} />
-            </div>
-            <div style={pinSlot}>
-              <img src="/pins/red.png" alt="Marketplace" style={pinImage} />
-            </div>
-            <div style={pinSlot}>
-              <img src="/pins/blue.png" alt="Free Stuff" style={pinImage} />
-            </div>
-            <div style={pinSlot}>
-              <img src="/pins/green.png" alt="Businesses" style={pinImage} />
-            </div>
-            <div style={pinSlot}>
-              <img src="/pins/purple.png" alt="Events" style={pinImage} />
-            </div>
-            <div style={pinSlot}>
-              <img
-                src="/pins/orange.png"
-                alt="Bulletin Board"
-                style={pinImage}
-              />
-            </div>
-          </nav>
+              maxWidth: "140px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <nav
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <div style={pinSlot}>
+                <img
+                  src="/pins/urgent.png"
+                  alt="Urgent"
+                  style={{
+                    ...pinImage,
+                    transform: "translateY(-2px)",
+                  }}
+                />
+              </div>
+              <div style={pinSlot}>
+                <img src="/pins/yellow.png" alt="Yard Sales" style={pinImage} />
+              </div>
+              <div style={pinSlot}>
+                <img src="/pins/red.png" alt="Marketplace" style={pinImage} />
+              </div>
+              <div style={pinSlot}>
+                <img src="/pins/blue.png" alt="Free Stuff" style={pinImage} />
+              </div>
+              <div style={pinSlot}>
+                <img src="/pins/green.png" alt="Businesses" style={pinImage} />
+              </div>
+              <div style={pinSlot}>
+                <img src="/pins/purple.png" alt="Events" style={pinImage} />
+              </div>
+              <div style={pinSlot}>
+                <img src="/pins/orange.png" alt="Bulletin Board" style={pinImage} />
+              </div>
+            </nav>
+          </div>
 
           {/* ACCOUNT ICON + DROPDOWN */}
-          <div ref={accountRef} style={{ position: "relative" }}>
+          <div ref={accountRef} style={{ position: "relative", flexShrink: 0 }}>
             <button
               onClick={() => setAccountOpen((prev) => !prev)}
               title="Your account"
               style={{
-                fontSize: "22px",
+                width: "36px",
+                height: "36px",
+                borderRadius: "999px",
+                fontSize: "20px",
                 background: "none",
                 border: "none",
                 cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               👤
@@ -159,7 +163,7 @@ export default function Header() {
                   right: 0,
                   background: "#fff",
                   border: "1px solid #E6E6E6",
-                  borderRadius: 8,
+                  borderRadius: 14,
                   padding: 12,
                   minWidth: 200,
                   boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
