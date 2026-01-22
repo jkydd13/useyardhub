@@ -1,5 +1,6 @@
 // pages/free-stuff.tsx
 import Head from "next/head";
+import CtaLink from "../components/CtaLink";
 
 export default function FreeStuffPage() {
   return (
@@ -43,12 +44,17 @@ export default function FreeStuffPage() {
             </p>
 
             <div style={{ marginTop: 24, display: "flex", gap: 14 }}>
-              <button className="primaryButton">
-                Browse free items
-              </button>
-              <button className="secondaryButton">
+              <CtaLink href="/login?next=/free-stuff">
+                View free items
+              </CtaLink>
+
+              <CtaLink
+                href="/login?next=/create/free-stuff"
+                variant="secondary"
+              >
                 Post free item
-              </button>
+              </CtaLink>
+
             </div>
           </section>
 

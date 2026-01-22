@@ -24,7 +24,7 @@ export default function AccountAuthGuard() {
 
         <a href="/signup">
           <button style={{ background: "#FDD835" }}>
-            Create account
+            Create an account
           </button>
         </a>
       </div>

@@ -1,5 +1,6 @@
 // pages/bulletin-board.tsx
 import Head from "next/head";
+import CtaLink from "../components/CtaLink";
 
 export default function BulletinBoardPage() {
   return (
@@ -12,6 +13,8 @@ export default function BulletinBoardPage() {
         />
       </Head>
 
+    {/* ✅ OUTERMOST WRAPPER TO PREVENT OVERFLOW */}
+    <div className="bulletinPage"></div>
       <main style={{ padding: "40px 24px", background: "#FFF8ED" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {/* HERO */}
@@ -32,14 +35,16 @@ export default function BulletinBoardPage() {
                 flexWrap: "wrap",
               }}
             >
-              <button className="primaryButton">
+              <CtaLink href="/login?next=/create/bulletin">
                 Create a Bulletin Post
-              </button>
+                </CtaLink>
+
               <span style={{ alignSelf: "center", fontSize: 14 }}>
                 Share a need, an offer, or a neighborhood note.
               </span>
             </div>
           </section>
+
            {/* PURPOSE NOTE */}
            <section style={{ marginBottom: 32 }}>
              <div className="card">
@@ -76,13 +81,8 @@ export default function BulletinBoardPage() {
           </section>
 
           {/* CONTENT GRID */}
-          <section
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 360px",
-              gap: 32,
-            }}
-          >
+          <section className="bulletinGrid">
+
             {/* FEED */}
             <div>
               {[1, 2, 3].map((i) => (
@@ -136,9 +136,10 @@ export default function BulletinBoardPage() {
             <div className="card">
               <h3>Not sure where to post?</h3>
               <p>
-                Time-sensitive safety concerns belong in <strong>Urgent</strong>.
-                Paid or bookable work belongs in <strong>Services</strong>.
-             </p>
+                Time-sensitive safety concerns belong in{" "}
+                  <strong>Urgent</strong>. Paid or bookable work belongs in{" "}
+                  <strong>Services</strong>.
+              </p>
             </div>
           </section>
         </div>

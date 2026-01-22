@@ -6,9 +6,10 @@ const links = [
   { label: "Yard Sales", href: "/yard-sales" },
   { label: "Marketplace", href: "/marketplace" },
   { label: "Free Stuff", href: "/free-stuff" },
-  { label: "Services", href: "/services" },
+  { label: "Businesses", href: "/businesses" },
   { label: "Events", href: "/events" },
   { label: "Bulletin Board", href: "/bulletin-board" },
+  { label: "Services", href: "/services" },
   { label: "Urgent", href: "/urgent" },
   { label: "About", href: "/about" },
 ];

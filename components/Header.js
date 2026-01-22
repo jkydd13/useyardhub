@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+
 
 const pinSlot = {
   width: "30px",
@@ -19,6 +20,26 @@ const pinImage = {
 export default function Header() {
   const [accountOpen, setAccountOpen] = useState(false);
   const isLoggedIn = false;
+
+  // ✅ NEW: ref for click-outside detection
+  const accountRef = useRef(null);
+
+  // ✅ NEW: close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        accountRef.current &&
+        !accountRef.current.contains(event.target)
+      ) {
+        setAccountOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <header
@@ -112,18 +133,18 @@ export default function Header() {
           </nav>
 
           {/* ACCOUNT ICON + DROPDOWN */}
-          <div style={{ position: "relative" }}>
+          <div ref={accountRef} style={{ position: "relative" }}>
             <button
-               onClick={() => setAccountOpen(!accountOpen)}
-               title="Your account"
-               style={{
-                 fontSize: "22px",
-                 background: "none",
-                 border: "none",
-                 cursor: "pointer",
-               }}
+              onClick={() => setAccountOpen((prev) => !prev)}
+              title="Your account"
+              style={{
+                fontSize: "22px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
             >
-               👤
+              👤
             </button>
 
             {accountOpen && (
@@ -147,7 +168,7 @@ export default function Header() {
                 {!isLoggedIn ? (
                   <>
                     <Link href="/login">Sign in</Link>
-                    <Link href="/signup">Create account</Link>
+                    <Link href="/signup">Create an account</Link>
 
                     <div style={{ height: 1, background: "#EAEAEA", margin: "8px 0" }} />
 

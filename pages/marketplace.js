@@ -1,5 +1,6 @@
 // pages/marketplace.tsx
 import Head from "next/head";
+import CtaLink from "../components/CtaLink";
 
 export default function MarketplacePage() {
   return (
@@ -43,12 +44,17 @@ export default function MarketplacePage() {
             </p>
 
             <div style={{ marginTop: 24, display: "flex", gap: 14 }}>
-              <button className="primaryButton">
-                Browse listings
-              </button>
-              <button className="secondaryButton">
-                Post an item
-              </button>
+              <CtaLink href="/login?next=/marketplace">
+                Browse marketplace
+              </CtaLink>
+
+              <CtaLink
+                href="/login?next=/create/marketplace"
+                variant="secondary"
+              >
+                Sell an item
+              </CtaLink>
+
             </div>
           </section>
 

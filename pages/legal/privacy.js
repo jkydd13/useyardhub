@@ -14,30 +14,30 @@ export default function PrivacyPage() {
             YardHub is built with privacy and respect at its core.
           </p>
 
-          <Section title="Information we collect">
+          <section title="Information we collect">
             We collect only what’s needed to operate YardHub, such as account
             details, listings, messages, and basic usage data.
-          </Section>
+          </section>
 
-          <Section title="How we use information">
+          <section title="How we use information">
             Your information helps us run the platform, improve features, and
             keep the community safe. We do not sell personal data.
-          </Section>
+          </section>
 
-          <Section title="Location sharing">
+          <section title="Location sharing">
             YardHub shows approximate locations, not exact addresses. You control
             what you share and when.
-          </Section>
+          </section>
 
-          <Section title="Messages">
+          <section title="Messages">
             Messages stay within YardHub. You control who can contact you and
             when.
-          </Section>
+          </section>
 
-          <Section title="Your choices">
+          <section title="Your choices">
             You can update your account, manage visibility, or close your
             account at any time.
-          </Section>
+          </section>
 
           <p style={styles.footerNote}>
             Trust matters to us — always.

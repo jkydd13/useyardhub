@@ -1,5 +1,6 @@
 // pages/services.tsx
 import Head from "next/head";
+import CtaLink from "../components/CtaLink";
 
 export default function ServicesPage() {
   return (
@@ -24,8 +25,17 @@ export default function ServicesPage() {
             </p>
 
             <div style={{ marginTop: 24, display: "flex", gap: 12 }}>
-              <button className="primaryButton">Find a service</button>
-              <button className="secondaryButton">Offer a service</button>
+              <CtaLink href="/login?next=/services">
+                Find a service
+              </CtaLink>
+
+              <CtaLink
+                href="/login?next=/create/service"
+                variant="secondary"
+              >
+                Offer a service
+              </CtaLink>
+
             </div>
           </section>
 

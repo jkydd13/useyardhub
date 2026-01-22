@@ -155,3 +155,307 @@ a .categoryTile:hover {
   transform: translateY(-2px);
 }
 
+/* =========================
+   YardHub – App Promo
+========================= */
+
+.appPromo {
+  margin-top: 48px;
+  padding: 24px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.appPromo h2 {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.appPromo p {
+  color: #555;
+  margin-bottom: 16px;
+}
+
+.storeButtons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.storePlaceholder {
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 2px dashed rgba(0,0,0,0.25);
+  font-weight: 600;
+  color: #666;
+}
+
+.qrPlaceholder {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px dashed rgba(0,0,0,0.25);
+  text-align: center;
+  color: #777;
+}
+/* =========================
+   YardHub Header Fix
+========================= */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  /* THIS fixes the icon falling off */
+  padding: 12px 16px;
+
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+
+  /* Prevent overflow issues */
+  box-sizing: border-box;
+}
+
+/* Left: logo */
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Center: category nav */
+.headerNav {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.headerNav::-webkit-scrollbar {
+  display: none;
+}
+
+/* Right: account icon */
+.headerRight {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* 🔒 keeps it inside the bar */
+  flex-shrink: 0;
+}
+.accountIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================
+   YardHub Auth Screens
+========================= */
+
+.authContainer {
+  padding: 24px 16px;   /* 👈 THIS fixes edge-touching */
+  max-width: 420px;     /* keeps it elegant on desktop */
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.authButton {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 999px;   /* 💊 pill */
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.authToggle {
+  display: flex;
+  gap: 8px;
+  background: rgba(0,0,0,0.04);
+  padding: 6px;
+  border-radius: 999px;
+  margin-bottom: 24px;
+}
+
+.authToggleButton {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  color: #555;
+}
+
+.authToggleButton.active {
+  background: #ffffff;
+  color: #111;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* =========================
+   Mobile Tap Highlight Reset
+========================= */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* =========================
+   Auth Action Pills
+========================= */
+
+.authActionRow {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.authPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 10px 16px;
+  border-radius: 999px;
+
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* Primary action */
+.authPill.primary {
+  background: #fdd835; /* YardHub yellow */
+  color: #111;
+}
+
+/* Secondary action */
+.authPill.secondary {
+  background: rgba(0,0,0,0.06);
+  color: #333;
+}
+
+/* Remove ugly active/focus states */
+.authPill:active,
+.authPill:focus {
+  background-color: inherit;
+  outline: none;
+}
+
+/* =========================
+   Account Dropdown Pills
+========================= */
+
+.accountDropdown {
+  background: #fff;
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  min-width: 200px;
+}
+
+.accountDropdown a {
+  display: flex;
+  align-items: center;
+
+  padding: 10px 14px;
+  margin-bottom: 6px;
+
+  border-radius: 999px; /* pill */
+  font-weight: 600;
+  text-decoration: none;
+
+  color: #111;
+  background: transparent;
+
+  transition: background 0.15s ease;
+}
+
+/* Hover / tap feedback */
+.accountDropdown a:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Primary emphasis (optional) */
+.accountDropdown a.primary {
+  background: #fdd835; /* YardHub yellow */
+}
+
+/* =========================
+   Bulletin Overflow Guard
+========================= */
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.bulletinPage {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* =========================
+   Bulletin Page Overflow Fix
+========================= */
+
+/* Responsive grid: stack on mobile */
+.bulletinGrid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 32px;
+}
+
+@media (max-width: 900px) {
+  .bulletinGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ctaLink {
+  display: inline-block;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.ctaLink.primary {
+  background: #ff9800;
+  color: #fff;
+}
+
+.ctaLink.secondary {
+  background: transparent;
+  border: 2px solid #ff9800;
+  color: #ff9800;
+}
+
+.ctaLink:hover {
+  opacity: 0.9;
+}
+
+.ctaLink.urgent {
+  background: #d32f2f;
+  color: #fff;
+}
+
+.ctaLink.urgent:hover {
+  opacity: 0.9;
+}

@@ -1,5 +1,6 @@
 // pages/urgent.tsx
 import Head from "next/head";
+import CtaLink from "../components/CtaLink";
 
 export default function UrgentPage() {
   return (
@@ -57,15 +58,14 @@ export default function UrgentPage() {
                 urgent assistance, or situations where waiting isn’t an option.
               </p>
 
-              <button
-                className="primaryButton"
-                style={{
-                  marginTop: 16,
-                  background: "#D32F2F",
-                }}
+              <CtaLink
+                href="/login?next=/create/urgent"
+                variant="urgent"
               >
                 Create urgent post
-              </button>
+              </CtaLink>
+
+
             </div>
           </section>
 

@@ -1,5 +1,6 @@
 // pages/yard-sales.tsx
 import Head from "next/head";
+import CtaLink from "../components/CtaLink";
 
 export default function YardSalesPage() {
   return (
@@ -43,12 +44,18 @@ export default function YardSalesPage() {
             </p>
 
             <div style={{ marginTop: 24, display: "flex", gap: 14 }}>
-              <button className="primaryButton">
+              <CtaLink href="/login?next=/yard-sales">
                 Browse nearby sales
-              </button>
-              <button className="secondaryButton">
+              </CtaLink>
+
+              <CtaLink
+                href="/login?next=/create/yard-sale"
+                variant="secondary"
+              >
                 Host a yard sale
-              </button>
+              </CtaLink>
+
+
             </div>
           </section>
 

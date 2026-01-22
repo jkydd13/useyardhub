@@ -1,5 +1,6 @@
 // pages/events.js
 import Head from "next/head";
+import CtaLink from "../components/CtaLink";
 
 export default function EventsPage() {
   return (
@@ -31,8 +32,13 @@ export default function EventsPage() {
             </p>
 
             <div style={{ marginTop: 24, display: "flex", gap: 14 }}>
-              <button className="primaryButton">Browse events</button>
-              <button className="secondaryButton">Create an event</button>
+              <CtaLink href="/login?next=/events" variant="secondary">
+                View upcoming events
+              </CtaLink>
+              <CtaLink href="/login?next=/create/event">
+                Post an event
+              </CtaLink>
+
             </div>
           </section>
 

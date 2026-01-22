@@ -1,5 +1,6 @@
 // pages/businesses.tsx
 import Head from "next/head";
+import CtaLink from "../components/CtaLink";
 
 export default function BusinessesPage() {
   return (
@@ -44,12 +45,17 @@ export default function BusinessesPage() {
             </p>
 
             <div style={{ marginTop: 24, display: "flex", gap: 14 }}>
-              <button className="primaryButton">
+              <CtaLink href="/login?next=/businesses">
                 Browse businesses
-              </button>
-              <button className="secondaryButton">
+              </CtaLink>
+
+              <CtaLink
+                href="/login?next=/create/business"
+                variant="secondary"
+              >
                 List a business
-              </button>
+              </CtaLink>
+
             </div>
           </section>
 

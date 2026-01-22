@@ -41,12 +41,43 @@ export default function HomePage() {
             </p>
 
             <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-              <button className="primaryButton">Explore your area</button>
-              <button className="secondaryButton">
-                Create a post
-              </button>
+              <Link href="/yard-sales">
+                <button className="primaryButton">
+                  Explore your area
+                </button>
+              </Link>
+
+              <Link href="/login">
+                <button className="secondaryButton">
+                  Create a post
+                </button>
+              </Link>
             </div>
+
           </section>
+
+<section className="appPromo">
+  <h2>Get the YardHub app</h2>
+
+  <p>
+    Browse nearby yard sales, marketplace listings, and free stuff —
+    faster and easier on mobile.
+  </p>
+
+  <div className="storeButtons">
+    <div className="storePlaceholder">
+      App Store
+    </div>
+
+    <div className="storePlaceholder">
+      Google Play
+    </div>
+  </div>
+
+  <div className="qrPlaceholder">
+    QR code coming soon
+  </div>
+</section>
 
           {/* WHAT YOU CAN DO */}
           <section style={{ marginBottom: 72 }}>
