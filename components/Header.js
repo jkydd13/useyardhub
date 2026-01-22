@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from "react";
 
 
 const pinSlot = {
-  width: "30px",
-  height: "40px",
+  width: "26px",
+  height: "36px",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -93,11 +93,15 @@ export default function Header() {
           {/* PINS */}
           <nav
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.2rem",
-            }}
-          >
+            display: "flex",
+            alignItems: "center",
+
+            gap: "2px",          // tighter than before
+            maxWidth: "120px",   // 🔒 HARD STOP
+            overflow: "hidden",  // 🔒 prevents icon push
+            flexShrink: 1,       // 🔒 allow compression
+          }}
+        >
             <div style={pinSlot}>
               <img
                 src="/pins/urgent.png"
