@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
    Pin sizing (safe for iOS)
 ========================= */
 const pinSlot = {
-  width: "26px",
+  width: "14px",
   height: "34px", // 👈 shorter to avoid clipping
   display: "flex",
   alignItems: "center",
@@ -13,8 +13,8 @@ const pinSlot = {
 };
 
 const pinImage = {
-  maxWidth: "24px",
-  maxHeight: "24px",
+  maxWidth: "30px",
+  maxHeight: "30px",
   objectFit: "contain",
   display: "block",
 };
@@ -99,7 +99,7 @@ export default function Header() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "4px",
+                gap: "2px",
                 whiteSpace: "nowrap",
               }}
             >
@@ -109,7 +109,7 @@ export default function Header() {
                   alt="Urgent"
                   style={{
                     ...pinImage,
-                    transform: "translateY(-2px)",
+                    transform: "translateY(-3px)",
                   }}
                 />
               </div>
