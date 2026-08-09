@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
-/* =========================
-   Pin sizing (safe for iOS)
-========================= */
 const pinSlot = {
   width: "14px",
-  height: "34px", // 👈 shorter to avoid clipping
+  height: "34px",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -20,11 +19,12 @@ const pinImage = {
 };
 
 export default function Header() {
+  const router = useRouter();
+  const { user, profile, loading, signOut } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
-  const isLoggedIn = false;
+  const [signOutError, setSignOutError] = useState("");
   const accountRef = useRef(null);
 
-  /* Close dropdown on outside click */
   useEffect(() => {
     function handleClickOutside(event) {
       if (accountRef.current && !accountRef.current.contains(event.target)) {
@@ -35,6 +35,25 @@ export default function Header() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    setAccountOpen(false);
+  }, [router.asPath]);
+
+  async function handleSignOut() {
+    setSignOutError("");
+
+    try {
+      await signOut();
+      setAccountOpen(false);
+      await router.replace("/");
+    } catch (error) {
+      setSignOutError(error.message || "YardHub could not sign you out.");
+    }
+  }
+
+  const accountLabel =
+    profile?.display_name?.trim() || user?.email || "Your account";
 
   return (
     <header
@@ -55,7 +74,6 @@ export default function Header() {
           alignItems: "center",
         }}
       >
-        {/* LEFT — LOGO */}
         <Link
           href="/"
           style={{
@@ -77,7 +95,6 @@ export default function Header() {
           </h2>
         </Link>
 
-        {/* RIGHT — PINS + ACCOUNT */}
         <div
           style={{
             display: "flex",
@@ -86,7 +103,6 @@ export default function Header() {
             marginLeft: "auto",
           }}
         >
-          {/* PIN RAIL (NO CLIPPING) */}
           <div
             style={{
               maxWidth: "140px",
@@ -96,6 +112,7 @@ export default function Header() {
             }}
           >
             <nav
+              aria-label="YardHub category pins"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -107,10 +124,7 @@ export default function Header() {
                 <img
                   src="/pins/urgent.png"
                   alt="Urgent"
-                  style={{
-                    ...pinImage,
-                    transform: "translateY(-3px)",
-                  }}
+                  style={{ ...pinImage, transform: "translateY(-3px)" }}
                 />
               </div>
               <div style={pinSlot}>
@@ -134,18 +148,20 @@ export default function Header() {
             </nav>
           </div>
 
-          {/* ACCOUNT ICON + DROPDOWN */}
           <div ref={accountRef} style={{ position: "relative", flexShrink: 0 }}>
             <button
-              onClick={() => setAccountOpen((prev) => !prev)}
-              title="Your account"
+              type="button"
+              onClick={() => setAccountOpen((previous) => !previous)}
+              title={accountLabel}
+              aria-label={accountLabel}
+              aria-expanded={accountOpen}
               style={{
                 width: "36px",
                 height: "36px",
                 borderRadius: "999px",
                 fontSize: "20px",
-                background: "none",
-                border: "none",
+                background: user ? "#FFF8C6" : "none",
+                border: user ? "1px solid #FDD835" : "none",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -156,44 +172,40 @@ export default function Header() {
             </button>
 
             {accountOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  right: 0,
-                  background: "#fff",
-                  border: "1px solid #E6E6E6",
-                  borderRadius: 14,
-                  padding: 12,
-                  minWidth: 200,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-                  zIndex: 1000,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
-                {!isLoggedIn ? (
+              <div className="accountDropdown">
+                {loading ? (
+                  <span>Checking account…</span>
+                ) : !user ? (
                   <>
                     <Link href="/login">Sign in</Link>
                     <Link href="/signup">Create an account</Link>
-
-                    <div style={{ height: 1, background: "#EAEAEA", margin: "8px 0" }} />
-
-                    <Link href="/account/credits">Credits</Link>
-                    <Link href="/account/subscriptions">Subscriptions</Link>
                   </>
                 ) : (
                   <>
+                    <div className="accountIdentity">
+                      <strong>{profile?.display_name || "YardHub account"}</strong>
+                      <span>{user.email}</span>
+                    </div>
+
+                    <div className="menuDivider" />
+
+                    <Link href="/account">Account overview</Link>
                     <Link href="/account/profile">Profile</Link>
-                    <Link href="/account/billing">Billing</Link>
-                    <Link href="/account/history">History</Link>
-                    <Link href="/account/credits">Credits</Link>
                     <Link href="/account/subscriptions">Subscriptions</Link>
 
-                    <div style={{ height: 1, background: "#EAEAEA", margin: "8px 0" }} />
+                    <div className="menuDivider" />
 
-                    <button style={{ textAlign: "left" }}>Sign out</button>
+                    <button
+                      type="button"
+                      className="menuButton"
+                      onClick={handleSignOut}
+                    >
+                      Sign out
+                    </button>
+
+                    {signOutError ? (
+                      <span className="formError">{signOutError}</span>
+                    ) : null}
                   </>
                 )}
               </div>

@@ -1,33 +1,48 @@
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { useAuth } from "../contexts/AuthContext";
+
 export default function AccountAuthGuard() {
+  const router = useRouter();
+  const { user, loading, authError } = useAuth();
+
+  if (loading) {
+    return (
+      <main className="authContainer">
+        <div className="card">
+          <h2>Checking your YardHub account…</h2>
+          <p>Please wait while your saved website session is restored.</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (user) return null;
+
+  const returnTo = router.asPath.startsWith("/") ? router.asPath : "/account";
+  const loginHref = `/login?next=${encodeURIComponent(returnTo)}`;
+
   return (
-    <div
-      style={{
-        border: "1px solid #E6E6E6",
-        background: "#FAFAFA",
-        borderRadius: 8,
-        padding: 24,
-        marginBottom: 32,
-      }}
-    >
-      <h2 style={{ marginBottom: 8 }}>
-        Sign in required
-      </h2>
+    <main className="authContainer">
+      <div className="card">
+        <h2>Sign in required</h2>
 
-      <p style={{ color: "#555", marginBottom: 16 }}>
-        You’ll need an account to view and manage your YardHub information.
-      </p>
+        <p>
+          Sign in with the same YardHub account you use in the mobile app.
+        </p>
 
-      <div style={{ display: "flex", gap: 12 }}>
-        <a href="/login">
-          <button>Sign in</button>
-        </a>
+        {authError ? <p className="formError">{authError}</p> : null}
 
-        <a href="/signup">
-          <button style={{ background: "#FDD835" }}>
+        <div className="buttonRow">
+          <Link className="buttonLink buttonPrimary" href={loginHref}>
+            Sign in
+          </Link>
+
+          <Link className="buttonLink buttonSecondary" href="/signup">
             Create an account
-          </button>
-        </a>
+          </Link>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

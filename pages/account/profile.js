@@ -1,103 +1,77 @@
-import AccountAuthGuard from "../../components/AccountAuthGuard";
+import Head from "next/head";
+import { useAuth } from "../../contexts/AuthContext";
 
-const isLoggedIn = false;
+function valueOrNotSet(value) {
+  const normalized = String(value ?? "").trim();
+  return normalized || "Not set";
+}
 
 export default function AccountProfilePage() {
+  const { user, profile, profileLoading, refreshProfile } = useAuth();
+
   return (
     <>
-    {!isLoggedIn && <AccountAuthGuard />}
+      <Head>
+        <title>Profile | YardHub</title>
+      </Head>
 
-    <div style={{ maxWidth: 720, margin: "40px auto", padding: "0 16px" }}>
-      {/* Header */}
-      <h1>Profile</h1>
-      <p style={{ color: "#555", marginBottom: 32 }}>
-        Manage your personal information and account settings.
-      </p>
+      <main className="accountPage">
+        <div className="accountWrap accountNarrow">
+          <section className="accountHeading">
+            <span className="eyebrow">Same YardHub account</span>
+            <h1>Profile</h1>
+            <p>
+              These details come from the same Supabase profile used by your
+              YardHub mobile app.
+            </p>
+          </section>
 
-      {/* Profile Info */}
-      <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>Personal information</h2>
-
-        <div style={{ display: "grid", gap: 16 }}>
-          <div>
-            <label>Name</label>
-            <input
-              type="text"
-              placeholder="Your name"
-              disabled
-              style={{ width: "100%" }}
+          <section className="card profileCard">
+            <ProfileRow label="Display name" value={valueOrNotSet(profile?.display_name)} />
+            <ProfileRow
+              label="Handle"
+              value={profile?.handle ? `@${profile.handle}` : "Not set"}
             />
-          </div>
-
-          <div>
-            <label>Email</label>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              disabled
-              style={{ width: "100%" }}
+            <ProfileRow label="Email" value={valueOrNotSet(user?.email)} />
+            <ProfileRow
+              label="Current profile location"
+              value={valueOrNotSet(profile?.location_label)}
             />
-          </div>
+            <ProfileRow
+              label="Visibility preference"
+              value={valueOrNotSet(profile?.profile_visibility)}
+            />
+            <ProfileRow label="Account ID" value={valueOrNotSet(user?.id)} monospace />
+
+            <button
+              type="button"
+              className="secondaryAction"
+              onClick={() => void refreshProfile()}
+              disabled={profileLoading}
+            >
+              {profileLoading ? "Refreshing…" : "Refresh from YardHub Production"}
+            </button>
+          </section>
+
+          <section className="infoPanel">
+            <strong>Website profile editing comes next.</strong>
+            <p>
+              This canary is intentionally read-only. Its job is to prove the
+              website retrieves your existing app-owned profile through the same
+              authenticated UUID and RLS policy.
+            </p>
+          </section>
         </div>
+      </main>
+    </>
+  );
+}
 
-        <p style={{ fontSize: 13, color: "#777", marginTop: 8 }}>
-          Editing profile details will be available once accounts are fully enabled.
-        </p>
-      </section>
-
-      {/* Security */}
-      <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>Security</h2>
-
-        <div
-          style={{
-            border: "1px solid #E6E6E6",
-            borderRadius: 8,
-            padding: 16,
-          }}
-        >
-          <p style={{ marginBottom: 12 }}>
-            Password
-          </p>
-
-          <button disabled>
-            Change password
-          </button>
-
-          <p style={{ fontSize: 13, color: "#777", marginTop: 8 }}>
-            Password management will be available soon.
-          </p>
-        </div>
-      </section>
-
-      {/* Danger Zone */}
-      <section>
-        <h2 style={{ fontSize: 18, marginBottom: 12, color: "#B00020" }}>
-          Danger zone
-        </h2>
-
-        <div
-          style={{
-            border: "1px solid #F2CACA",
-            background: "#FFF7F7",
-            borderRadius: 8,
-            padding: 16,
-          }}
-        >
-          <p style={{ marginBottom: 12 }}>
-            Deleting your account is permanent and cannot be undone.
-          </p>
-
-          <button disabled style={{ background: "#E53935", color: "#FFF" }}>
-            Delete account
-          </button>
-
-          <p style={{ fontSize: 13, color: "#777", marginTop: 8 }}>
-            Account deletion will be available once accounts are fully enabled.
-          </p>
-        </div>
-      </section>
+function ProfileRow({ label, value, monospace = false }) {
+  return (
+    <div className="profileRow">
+      <span>{label}</span>
+      <strong className={monospace ? "monospaceValue" : ""}>{value}</strong>
     </div>
-   </>
   );
 }

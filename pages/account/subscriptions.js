@@ -1,30 +1,114 @@
 // pages/account/subscriptions.js
 import Head from "next/head";
-import AccountAuthGuard from "../../components/AccountAuthGuard";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+import { useBusinessEntitlements } from "../../hooks/useBusinessEntitlements";
 
-const isLoggedIn = false;
+function getHubPassBusinessStatus(summary, loading, error) {
+  if (loading) return "Checking…";
+  if (error) return "Needs attention";
+
+  if (["active", "active_and_available"].includes(summary.state)) {
+    return "Active";
+  }
+
+  if (summary.state === "available") return "Available";
+  if (summary.state === "attention") return "Needs attention";
+  if (summary.state === "suspended") return "Unavailable";
+  return "Not active";
+}
 
 export default function SubscriptionsPage() {
-  // UI-only placeholders (backend later)
+  const router = useRouter();
+  const { session } = useAuth();
+  const { summary, loading, error, refresh } = useBusinessEntitlements();
+  const [startingCheckout, setStartingCheckout] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+
   const status = {
     hubpass: "Not active",
-    hubpassBusiness: "Not active",
+    hubpassBusiness: getHubPassBusinessStatus(summary, loading, error),
     gold: "Not active",
     freeStuff: "Not active",
   };
 
-  // Backend-ready placeholders (wire later)
   const manageLinks = {
     hubpass: "#",
-    hubpassBusiness: "#",
     gold: "#",
     freeStuff: "#",
     credits: "/account/credits",
   };
 
+  const checkoutResult = router.isReady ? router.query.checkout : null;
+  const canStartHubPassBusiness =
+    checkoutResult !== "success" &&
+    !loading &&
+    !startingCheckout &&
+    !error &&
+    summary.state === "none";
+
+  useEffect(() => {
+    if (checkoutResult !== "success") return undefined;
+
+    let cancelled = false;
+    let timer = null;
+    let attempt = 0;
+
+    async function pollForEntitlement() {
+      attempt += 1;
+      await refresh();
+
+      if (!cancelled && attempt < 10) {
+        timer = window.setTimeout(pollForEntitlement, 2000);
+      }
+    }
+
+    void pollForEntitlement();
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [checkoutResult, refresh]);
+
+  async function startHubPassBusinessCheckout() {
+    if (!session?.access_token || !canStartHubPassBusiness) return;
+
+    setCheckoutError("");
+    setStartingCheckout(true);
+
+    try {
+      const response = await fetch(
+        "/api/stripe/create-checkout-session",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "YardHub could not start checkout.");
+      }
+
+      if (!payload.url) {
+        throw new Error("Stripe Checkout did not return a destination.");
+      }
+
+      window.location.assign(payload.url);
+    } catch (nextError) {
+      setCheckoutError(
+        nextError.message || "YardHub could not start Stripe Checkout."
+      );
+      setStartingCheckout(false);
+    }
+  }
+
   return (
     <>
-      {!isLoggedIn && <AccountAuthGuard />}
 
       <Head>
         <title>Subscriptions | YardHub</title>
@@ -172,14 +256,63 @@ export default function SubscriptionsPage() {
               </div>
 
               <PriceLine
-                primary="$19.99 / month"
-                secondary="$191.90 / year (20% off)"
+                primary="$29.99 / month"
+                secondary="Includes one active Business and one active location"
               />
 
+              <div style={styles.note}>
+                Each additional active location is $14.99 / month for that
+                same Business only. It does not activate a second Business.
+              </div>
+
+              {checkoutResult === "success" ? (
+                <div style={styles.successNotice}>
+                  Stripe Checkout completed. YardHub is synchronizing your
+                  Business access now. This page will refresh the entitlement
+                  automatically.
+                </div>
+              ) : null}
+
+              {checkoutResult === "cancelled" ? (
+                <div style={styles.neutralNotice}>
+                  Checkout was cancelled. Nothing was changed.
+                </div>
+              ) : null}
+
+              {error ? (
+                <div style={styles.errorNotice}>{error}</div>
+              ) : null}
+
+              {checkoutError ? (
+                <div style={styles.errorNotice}>{checkoutError}</div>
+              ) : null}
+
+              <div style={styles.note}>
+                YardHub determines first-month trial eligibility on the server.
+                An account may receive one first-month trial within a rolling
+                12-month window.
+              </div>
+
               <ButtonRow>
-                <PrimaryButton href={manageLinks.hubpassBusiness}>
-                  Manage HubPass Business
-                </PrimaryButton>
+                <ActionButton
+                  onClick={startHubPassBusinessCheckout}
+                  disabled={!canStartHubPassBusiness}
+                >
+                  {startingCheckout
+                    ? "Opening Stripe…"
+                    : summary.state === "available"
+                    ? "Business access available"
+                    : ["active", "active_and_available"].includes(summary.state)
+                    ? "HubPass Business active"
+                    : "Start HubPass Business"}
+                </ActionButton>
+
+                <SecondaryActionButton
+                  onClick={() => void refresh()}
+                  disabled={loading || startingCheckout}
+                >
+                  {loading ? "Refreshing…" : "Refresh status"}
+                </SecondaryActionButton>
               </ButtonRow>
             </Card>
 
@@ -313,16 +446,19 @@ function CardTop({ title, subtitle, status }) {
 }
 
 function StatusPill({ status }) {
-  const isActive = String(status).toLowerCase() === "active";
+  const normalizedStatus = String(status).toLowerCase();
+  const isPositive = ["active", "available"].includes(normalizedStatus);
   return (
     <span
       style={{
         ...styles.pill,
-        background: isActive ? "rgba(76,175,80,0.14)" : "rgba(0,0,0,0.06)",
-        border: isActive
+        background: isPositive
+          ? "rgba(76,175,80,0.14)"
+          : "rgba(0,0,0,0.06)",
+        border: isPositive
           ? "1px solid rgba(76,175,80,0.25)"
           : "1px solid rgba(0,0,0,0.10)",
-        color: isActive ? "#1B5E20" : "#333",
+        color: isPositive ? "#1B5E20" : "#333",
       }}
     >
       {status}
@@ -365,6 +501,40 @@ function PrimaryButton({ href, children }) {
     <a href={href} style={styles.primaryBtn}>
       {children}
     </a>
+  );
+}
+
+function ActionButton({ onClick, disabled, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        ...styles.primaryBtn,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.58 : 1,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SecondaryActionButton({ onClick, disabled, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        ...styles.secondaryBtn,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.58 : 1,
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -556,6 +726,8 @@ const styles = {
     padding: "10px 12px",
     borderRadius: 14,
     textDecoration: "none",
+    fontFamily: "inherit",
+    fontSize: 14,
     fontWeight: 900,
     color: "#0B3A66",
     background: "rgba(33,150,243,0.12)",
@@ -566,9 +738,41 @@ const styles = {
     padding: "10px 12px",
     borderRadius: 14,
     textDecoration: "none",
+    fontFamily: "inherit",
+    fontSize: 14,
     fontWeight: 900,
     color: "#111",
     background: "rgba(0,0,0,0.05)",
     border: "1px solid rgba(0,0,0,0.10)",
+  },
+  successNotice: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 14,
+    background: "rgba(76,175,80,0.10)",
+    border: "1px solid rgba(76,175,80,0.22)",
+    color: "#1B5E20",
+    fontSize: 13.5,
+    lineHeight: 1.45,
+  },
+  neutralNotice: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 14,
+    background: "rgba(0,0,0,0.04)",
+    border: "1px solid rgba(0,0,0,0.10)",
+    color: "rgba(0,0,0,0.74)",
+    fontSize: 13.5,
+    lineHeight: 1.45,
+  },
+  errorNotice: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 14,
+    background: "rgba(211,47,47,0.08)",
+    border: "1px solid rgba(211,47,47,0.20)",
+    color: "#8B1E1E",
+    fontSize: 13.5,
+    lineHeight: 1.45,
   },
 };

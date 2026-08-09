@@ -475,3 +475,371 @@ body {
 .ctaLink.urgent:hover {
   opacity: 0.9;
 }
+
+/* =========================
+   YardHub Website Auth Canary
+========================= */
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #111827;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+input {
+  min-height: 46px;
+  width: 100%;
+  border: 1px solid #d8d8d8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #222;
+}
+
+input:focus {
+  outline: 3px solid rgba(253, 216, 53, 0.28);
+  border-color: #c5a900;
+}
+
+.authContainer {
+  min-height: 56vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 20px;
+}
+
+.authCard {
+  width: min(100%, 520px);
+}
+
+.formStack {
+  display: grid;
+  gap: 10px;
+}
+
+.formStack button {
+  margin-top: 8px;
+}
+
+.formLinkLine {
+  font-size: 14px;
+}
+
+.formError,
+.formSuccess {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.formError {
+  background: #fff1f1;
+  border: 1px solid #efb6b6;
+  color: #8d1d1d;
+}
+
+.formSuccess {
+  background: #effaf1;
+  border: 1px solid #b9dfbf;
+  color: #205d2b;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.checkboxRow input {
+  width: 18px;
+  min-height: 18px;
+  margin-top: 2px;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.buttonLink {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.buttonPrimary {
+  background: #111827;
+  color: #fff;
+}
+
+.buttonSecondary {
+  background: #fdd835;
+  color: #222;
+}
+
+.accountDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 240px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid #e6e6e6;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.accountDropdown a,
+.menuButton {
+  color: #222;
+  text-align: left;
+  text-decoration: none;
+  background: none;
+  min-height: auto;
+  padding: 5px 2px;
+  font-weight: 600;
+}
+
+.accountIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+
+.accountIdentity span {
+  color: #666;
+  font-size: 12px;
+}
+
+.menuDivider {
+  height: 1px;
+  background: #eaeaea;
+}
+
+.accountPage {
+  min-height: 56vh;
+  background: #fafafa;
+  padding: 48px 20px;
+}
+
+.accountWrap {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.accountNarrow {
+  max-width: 760px;
+}
+
+.accountHeading {
+  margin-bottom: 28px;
+}
+
+.accountHeading h1 {
+  margin: 5px 0 8px;
+  font-size: clamp(30px, 5vw, 42px);
+}
+
+.accountHeading p {
+  color: #555;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.eyebrow {
+  color: #467349;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.accountGrid {
+  align-items: stretch;
+}
+
+.profileCard {
+  gap: 0;
+}
+
+.profileRow {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(0, 1.2fr);
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.profileRow span {
+  color: #666;
+}
+
+.profileRow strong {
+  overflow-wrap: anywhere;
+}
+
+.monospaceValue {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+}
+
+.secondaryAction {
+  margin-top: 20px;
+  border: 1px solid #cfcfcf;
+  background: #fff;
+  color: #222;
+}
+
+.infoPanel {
+  margin-top: 20px;
+  border-radius: 14px;
+  border: 1px solid #d8e7d9;
+  background: #f4faf4;
+  padding: 18px;
+}
+
+.infoPanel p {
+  margin-top: 6px;
+  color: #4f5e50;
+  line-height: 1.6;
+}
+
+.mutedText {
+  color: #666 !important;
+  font-size: 14px !important;
+}
+
+@media (max-width: 640px) {
+  .profileRow {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .accountDropdown {
+    position: fixed;
+    top: 76px;
+    left: 16px;
+    right: 16px;
+  }
+}
+
+/* =========================
+   Business Entitlement Bridge Canary
+========================= */
+
+.entitlementCard {
+  gap: 0;
+}
+
+.entitlementCardHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.entitlementCardHeading h3 {
+  margin: 0;
+}
+
+.bridgeConnectedPill {
+  flex: 0 0 auto;
+  border: 1px solid #cfe4d1;
+  border-radius: 999px;
+  background: #f1f8f2;
+  color: #2f6b35;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.entitlementStatus {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 16px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.entitlementStatus-positive {
+  border: 1px solid #b9dabb;
+  background: #edf8ee;
+  color: #245e2a;
+}
+
+.entitlementStatus-neutral {
+  border: 1px solid #d9dee5;
+  background: #f5f7f9;
+  color: #3f4b59;
+}
+
+.entitlementStatus-warning {
+  border: 1px solid #f2d293;
+  background: #fff8e9;
+  color: #7b4d00;
+}
+
+.entitlementActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.entitlementRefreshButton {
+  width: auto;
+  margin-top: 0;
+  min-height: 42px;
+  padding: 8px 14px;
+}
+
+.entitlementPrivacyNote {
+  margin-top: 18px !important;
+  border-top: 1px solid #ececec;
+  padding-top: 14px;
+  color: #68717c !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+}
+
+@media (max-width: 640px) {
+  .entitlementCardHeading {
+    flex-direction: column;
+  }
+}
