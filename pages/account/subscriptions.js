@@ -13,7 +13,7 @@ function getHubPassBusinessStatus(summary, loading, error) {
     return "Active";
   }
 
-  if (summary.state === "available") return "Available";
+  if (summary.state === "available") return "Active";
   if (summary.state === "attention") return "Needs attention";
   if (summary.state === "suspended") return "Unavailable";
   return "Not active";
@@ -301,9 +301,9 @@ export default function SubscriptionsPage() {
                   {startingCheckout
                     ? "Opening Stripe…"
                     : summary.state === "available"
-                    ? "Business access available"
+                    ? "Manage HubPass Business"
                     : ["active", "active_and_available"].includes(summary.state)
-                    ? "HubPass Business active"
+                    ? "Manage HubPass Business"
                     : "Start HubPass Business"}
                 </ActionButton>
 

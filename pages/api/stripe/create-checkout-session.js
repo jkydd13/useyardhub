@@ -326,7 +326,7 @@ export default async function handler(req, res) {
           yardhub_environment: environment,
         },
         subscription_data: subscriptionData,
-        success_url: `${siteOrigin}/account/subscriptions?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${siteOrigin}/account/hubpass-business-activated?session_id={CHECKOUT_SESSION_ID}&trial=${trialEligible ? "1" : "0"}`,
         cancel_url: `${siteOrigin}/account/subscriptions?checkout=cancelled`,
       },
       { idempotencyKey }
