@@ -8,9 +8,34 @@ const POSITIVE_STATES = new Set(["available", "active", "active_and_available"])
 
 export default function HubPassBusinessActivatedPage() {
   const router = useRouter();
-  const { summary, loading, error, refresh } = useBusinessEntitlements();
-  const isActive = POSITIVE_STATES.has(summary.state);
-  const trialStarted = router.isReady && router.query.trial === "1";
+  const { entitlements, summary, loading, error, refresh } =
+    useBusinessEntitlements();
+  const fallbackActive = POSITIVE_STATES.has(summary.state);
+  const expectedBaseCount = router.isReady
+    ? Number(router.query.expected_bases)
+    : Number.NaN;
+  const expectedLocationCount = router.isReady
+    ? Number(router.query.expected_locations)
+    : Number.NaN;
+  const currentBaseCount = Number(summary.totalActiveCount ?? 0);
+  const currentLocationCount = (entitlements ?? [])
+    .filter((item) => item?.entitlement_status === "active")
+    .reduce(
+      (sum, item) =>
+        sum + Number(item?.additional_location_entitlement_count ?? 0),
+      0
+    );
+  const hasExpectedCounts =
+    Number.isFinite(expectedBaseCount) &&
+    Number.isFinite(expectedLocationCount);
+  const isActive = hasExpectedCounts
+    ? currentBaseCount >= expectedBaseCount &&
+      currentLocationCount >= expectedLocationCount
+    : fallbackActive;
+  const firstMonthFree =
+    router.isReady &&
+    (router.query.free_month === "1" || router.query.trial === "1");
+  const locationOnly = router.isReady && router.query.mode === "locations";
 
   useEffect(() => {
     if (isActive) return undefined;
@@ -39,10 +64,10 @@ export default function HubPassBusinessActivatedPage() {
   return (
     <>
       <Head>
-        <title>HubPass Business Activated | YardHub</title>
+        <title>HubPass Business Updated | YardHub</title>
         <meta
           name="description"
-          content="Your HubPass Business subscription is active."
+          content="Your HubPass Business checkout is complete."
         />
       </Head>
 
@@ -51,7 +76,11 @@ export default function HubPassBusinessActivatedPage() {
           <div style={styles.check}>✓</div>
           <div style={styles.eyebrow}>HubPass Business</div>
           <h1 style={styles.h1}>
-            {isActive ? "HubPass Business activated" : "Finishing your setup…"}
+            {isActive
+              ? locationOnly
+                ? "Additional locations activated"
+                : "HubPass Business activated"
+              : "Finishing your setup…"}
           </h1>
 
           {error ? (
@@ -61,17 +90,21 @@ export default function HubPassBusinessActivatedPage() {
             </div>
           ) : isActive ? (
             <>
-              <div style={styles.statusPill}>Active</div>
+              <div style={styles.statusPill}>{summary.title}</div>
               <p style={styles.lead}>
-                {trialStarted
-                  ? "Your first-month free trial has started. HubPass Business will be $29.99/month after the trial unless canceled."
-                  : "Your HubPass Business subscription is active at $29.99/month."}
+                {locationOnly
+                  ? "Your additional-location subscription is active and stays related to the HubPass Business base you selected."
+                  : firstMonthFree
+                  ? "Your first eligible checkout batch received the first month free on every HubPass Business base in this batch."
+                  : "Your new HubPass Business base subscription is active."}
               </p>
               <p style={styles.copy}>
-                Your plan includes one active Business and one active location.
-                Additional active locations are $14.99/month each for that same
-                Business only.
+                Each HubPass Business base is $29.99/month and includes one
+                active location. Additional active locations are $14.99/month
+                each for that same Business only. Additional locations are not
+                part of the first-month-free base discount.
               </p>
+              <p style={styles.detail}>{summary.detail}</p>
             </>
           ) : (
             <p style={styles.lead}>
@@ -81,7 +114,7 @@ export default function HubPassBusinessActivatedPage() {
           )}
 
           <div style={styles.actions}>
-            <Link href="/account/subscriptions" style={styles.primaryButton}>
+            <Link href="/account/hubpass-business" style={styles.primaryButton}>
               Manage HubPass Business
             </Link>
             <Link href="/account" style={styles.secondaryButton}>
@@ -175,6 +208,17 @@ const styles = {
     fontSize: 14.5,
     lineHeight: 1.55,
     color: "rgba(0,0,0,0.62)",
+  },
+  detail: {
+    margin: "14px auto 0",
+    maxWidth: 560,
+    padding: 12,
+    borderRadius: 14,
+    background: "rgba(76,175,80,0.08)",
+    border: "1px solid rgba(76,175,80,0.18)",
+    fontSize: 13.5,
+    lineHeight: 1.5,
+    color: "rgba(0,0,0,0.72)",
   },
   errorBox: {
     margin: "16px auto",

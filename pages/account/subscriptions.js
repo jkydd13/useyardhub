@@ -1,19 +1,18 @@
 // pages/account/subscriptions.js
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
+import { useEffect } from "react";
 import { useBusinessEntitlements } from "../../hooks/useBusinessEntitlements";
 
 function getHubPassBusinessStatus(summary, loading, error) {
   if (loading) return "Checking…";
   if (error) return "Needs attention";
 
-  if (["active", "active_and_available"].includes(summary.state)) {
-    return "Active";
+  const activeCount = Number(summary.totalActiveCount ?? 0);
+  if (activeCount > 0) {
+    return activeCount === 1 ? "Active" : `${activeCount} Active`;
   }
 
-  if (summary.state === "available") return "Active";
   if (summary.state === "attention") return "Needs attention";
   if (summary.state === "suspended") return "Unavailable";
   return "Not active";
@@ -21,10 +20,7 @@ function getHubPassBusinessStatus(summary, loading, error) {
 
 export default function SubscriptionsPage() {
   const router = useRouter();
-  const { session } = useAuth();
   const { summary, loading, error, refresh } = useBusinessEntitlements();
-  const [startingCheckout, setStartingCheckout] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
 
   const status = {
     hubpass: "Not active",
@@ -41,12 +37,7 @@ export default function SubscriptionsPage() {
   };
 
   const checkoutResult = router.isReady ? router.query.checkout : null;
-  const canStartHubPassBusiness =
-    checkoutResult !== "success" &&
-    !loading &&
-    !startingCheckout &&
-    !error &&
-    summary.state === "none";
+  const hasActiveHubPassBusiness = Number(summary.totalActiveCount ?? 0) > 0;
 
   useEffect(() => {
     if (checkoutResult !== "success") return undefined;
@@ -71,41 +62,6 @@ export default function SubscriptionsPage() {
       if (timer) window.clearTimeout(timer);
     };
   }, [checkoutResult, refresh]);
-
-  async function startHubPassBusinessCheckout() {
-    if (!session?.access_token || !canStartHubPassBusiness) return;
-
-    setCheckoutError("");
-    setStartingCheckout(true);
-
-    try {
-      const response = await fetch(
-        "/api/stripe/create-checkout-session",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "YardHub could not start checkout.");
-      }
-
-      if (!payload.url) {
-        throw new Error("Stripe Checkout did not return a destination.");
-      }
-
-      window.location.assign(payload.url);
-    } catch (nextError) {
-      setCheckoutError(
-        nextError.message || "YardHub could not start Stripe Checkout."
-      );
-      setStartingCheckout(false);
-    }
-  }
 
   return (
     <>
@@ -283,33 +239,36 @@ export default function SubscriptionsPage() {
                 <div style={styles.errorNotice}>{error}</div>
               ) : null}
 
-              {checkoutError ? (
-                <div style={styles.errorNotice}>{checkoutError}</div>
+              {hasActiveHubPassBusiness ? (
+                <div style={styles.successNotice}>{summary.detail}</div>
               ) : null}
 
               <div style={styles.note}>
-                YardHub determines first-month trial eligibility on the server.
-                An account may receive one first-month trial within a rolling
-                12-month window.
+                On an account's first eligible checkout batch within a rolling
+                12-month window, the first month is free for every HubPass
+                Business base in that batch. Additional locations are never
+                discounted and begin billing immediately.
               </div>
 
               <ButtonRow>
-                <ActionButton
-                  onClick={startHubPassBusinessCheckout}
-                  disabled={!canStartHubPassBusiness}
-                >
-                  {startingCheckout
-                    ? "Opening Stripe…"
-                    : summary.state === "available"
-                    ? "Manage HubPass Business"
-                    : ["active", "active_and_available"].includes(summary.state)
-                    ? "Manage HubPass Business"
-                    : "Start HubPass Business"}
-                </ActionButton>
+                {hasActiveHubPassBusiness ? (
+                  <>
+                    <PrimaryButton href="/account/hubpass-business">
+                      Manage HubPass Business
+                    </PrimaryButton>
+                    <SecondaryButton href="/account/hubpass-business-checkout">
+                      Add another Business
+                    </SecondaryButton>
+                  </>
+                ) : (
+                  <PrimaryButton href="/account/hubpass-business-checkout">
+                    Start HubPass Business
+                  </PrimaryButton>
+                )}
 
                 <SecondaryActionButton
                   onClick={() => void refresh()}
-                  disabled={loading || startingCheckout}
+                  disabled={loading}
                 >
                   {loading ? "Refreshing…" : "Refresh status"}
                 </SecondaryActionButton>
@@ -447,7 +406,9 @@ function CardTop({ title, subtitle, status }) {
 
 function StatusPill({ status }) {
   const normalizedStatus = String(status).toLowerCase();
-  const isPositive = ["active", "available"].includes(normalizedStatus);
+  const isPositive =
+    ["active", "available"].includes(normalizedStatus) ||
+    /^\d+ active$/.test(normalizedStatus);
   return (
     <span
       style={{
@@ -501,23 +462,6 @@ function PrimaryButton({ href, children }) {
     <a href={href} style={styles.primaryBtn}>
       {children}
     </a>
-  );
-}
-
-function ActionButton({ onClick, disabled, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        ...styles.primaryBtn,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.58 : 1,
-      }}
-    >
-      {children}
-    </button>
   );
 }
 

@@ -1,6 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   getSupabaseAdminClient,
+  getSupabaseUserClient,
   requireAuthenticatedUser,
 } from "../../../lib/supabaseServer";
 import {
@@ -8,121 +9,230 @@ import {
   getStripeServerClient,
   getYardHubSiteOrigin,
   HUBPASS_BUSINESS_BASE_PRODUCT_CODE,
-  oneCalendarMonthFromNowUnix,
   stripeObjectId,
   unixSecondsToIso,
 } from "../../../lib/stripeServer";
+import {
+  getHubPassBusinessFirstMonthFreeEligibility,
+} from "../../../lib/hubpassBusinessFreeMonthServer";
 
-const NON_TERMINAL_SUBSCRIPTION_STATUSES = new Set([
-  "active",
-  "past_due",
-  "grace_period",
-  "suspended",
-]);
+const ADDITIONAL_LOCATION_PRODUCT_CODE =
+  "HUBPASS_BUSINESS_ADDITIONAL_LOCATION";
+const FIRST_MONTH_FREE_DISCOUNT_CODE =
+  "HUBPASS_BUSINESS_FIRST_MONTH_FREE";
+const MAX_BASES_PER_BATCH = 100;
+const MAX_ADDITIONAL_LOCATIONS_PER_BATCH = 100;
 
 function sendJson(res, statusCode, body) {
   res.status(statusCode).json(body);
 }
 
-async function getBaseSubscriptionHistory(admin, ownerUserId, environment) {
-  const { data: subscriptions, error: subscriptionsError } = await admin
-    .from("commerce_subscriptions")
-    .select("id,status,started_at,created_at")
-    .eq("owner_user_id", ownerUserId)
-    .eq("provider", "stripe")
-    .eq("environment", environment)
-    .order("created_at", { ascending: false });
-
-  if (subscriptionsError) throw subscriptionsError;
-  if (!subscriptions?.length) return [];
-
-  const subscriptionIds = subscriptions.map((item) => item.id);
-  const { data: items, error: itemsError } = await admin
-    .from("commerce_subscription_items")
-    .select("subscription_id")
-    .eq("provider", "stripe")
-    .eq("environment", environment)
-    .eq("product_code", HUBPASS_BUSINESS_BASE_PRODUCT_CODE)
-    .in("subscription_id", subscriptionIds);
-
-  if (itemsError) throw itemsError;
-
-  const baseSubscriptionIds = new Set(
-    (items ?? []).map((item) => item.subscription_id)
-  );
-
-  return subscriptions.filter((item) => baseSubscriptionIds.has(item.id));
-}
-
-function hasCurrentBaseSubscription(history) {
-  return history.some((item) =>
-    NON_TERMINAL_SUBSCRIPTION_STATUSES.has(item.status)
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value ?? "")
   );
 }
 
-function isTrialEligible(history) {
-  const eligibilityBoundary = new Date();
-  eligibilityBoundary.setUTCFullYear(eligibilityBoundary.getUTCFullYear() - 1);
+function asWholeNumber(value, fallback = 0) {
+  const number = Number(value);
+  if (!Number.isInteger(number)) return fallback;
+  return number;
+}
 
-  return !history.some((item) => {
-    const startedAt = new Date(item.started_at ?? item.created_at ?? 0);
-    return Number.isFinite(startedAt.getTime()) && startedAt >= eligibilityBoundary;
+function normalizeCheckoutRequest(body) {
+  const rawBusinesses = Array.isArray(body?.businesses)
+    ? body.businesses
+    : [];
+  const rawExisting = Array.isArray(body?.existingBaseAdditions)
+    ? body.existingBaseAdditions
+    : [];
+
+  // Backward-compatible default: an empty POST means one new Business base.
+  const businesses = (
+    rawBusinesses.length > 0 || rawExisting.length > 0
+      ? rawBusinesses
+      : [{ additionalLocations: 0 }]
+  ).map((entry, index) => {
+    const additionalLocations = asWholeNumber(entry?.additionalLocations, -1);
+
+    if (
+      additionalLocations < 0 ||
+      additionalLocations > MAX_ADDITIONAL_LOCATIONS_PER_BATCH
+    ) {
+      throw new Error(`Additional-location quantity is invalid for Business ${index + 1}.`);
+    }
+
+    return {
+      baseUnitIndex: index + 1,
+      additionalLocations,
+    };
   });
+
+  if (businesses.length > MAX_BASES_PER_BATCH) {
+    throw new Error(
+      `A single checkout can include at most ${MAX_BASES_PER_BATCH} new Businesses.`
+    );
+  }
+
+  const existingById = new Map();
+
+  for (const entry of rawExisting) {
+    const id = String(entry?.hubpassBusinessSubscriptionId ?? "").trim();
+    const additionalLocations = asWholeNumber(entry?.additionalLocations, -1);
+
+    if (!isUuid(id)) {
+      throw new Error("An existing HubPass Business entitlement ID is invalid.");
+    }
+
+    if (
+      additionalLocations < 1 ||
+      additionalLocations > MAX_ADDITIONAL_LOCATIONS_PER_BATCH
+    ) {
+      throw new Error("Additional-location quantity must be at least 1.");
+    }
+
+    existingById.set(id, (existingById.get(id) ?? 0) + additionalLocations);
+  }
+
+  const existingBaseAdditions = Array.from(existingById.entries())
+    .map(([hubpassBusinessSubscriptionId, additionalLocations]) => ({
+      hubpassBusinessSubscriptionId,
+      additionalLocations,
+    }))
+    .sort((a, b) =>
+      a.hubpassBusinessSubscriptionId.localeCompare(
+        b.hubpassBusinessSubscriptionId
+      )
+    );
+
+  const baseQuantity = businesses.length;
+  const additionalLocationQuantity =
+    businesses.reduce((sum, item) => sum + item.additionalLocations, 0) +
+    existingBaseAdditions.reduce(
+      (sum, item) => sum + item.additionalLocations,
+      0
+    );
+
+  if (baseQuantity < 1 && additionalLocationQuantity < 1) {
+    throw new Error("Add at least one Business or one additional location.");
+  }
+
+  if (additionalLocationQuantity > MAX_ADDITIONAL_LOCATIONS_PER_BATCH) {
+    throw new Error(
+      `A single checkout can include at most ${MAX_ADDITIONAL_LOCATIONS_PER_BATCH} additional locations.`
+    );
+  }
+
+  return {
+    businesses,
+    existingBaseAdditions,
+    baseQuantity,
+    additionalLocationQuantity,
+  };
 }
 
-async function hasRecentCompletedCheckout({
-  admin,
-  ownerUserId,
-  environment,
-}) {
-  const boundary = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await admin
-    .from("commerce_checkout_sessions")
-    .select("id")
-    .eq("owner_user_id", ownerUserId)
-    .eq("provider", "stripe")
-    .eq("environment", environment)
-    .eq("product_code", HUBPASS_BUSINESS_BASE_PRODUCT_CODE)
-    .eq("status", "complete")
-    .gte("completed_at", boundary)
-    .limit(1)
-    .maybeSingle();
+function checkoutFingerprint(request) {
+  const stable = JSON.stringify({
+    businesses: request.businesses.map((item) => ({
+      baseUnitIndex: item.baseUnitIndex,
+      additionalLocations: item.additionalLocations,
+    })),
+    existingBaseAdditions: request.existingBaseAdditions,
+  });
 
-  if (error) throw error;
-  return Boolean(data);
+  return createHash("sha256").update(stable).digest("hex");
 }
 
-async function getActivePriceMapping(admin, environment) {
+async function getActivePriceMapping(admin, environment, productCode) {
   const { data, error } = await admin
     .from("commerce_provider_price_mappings")
     .select("provider_product_id,provider_price_id")
     .eq("provider", "stripe")
     .eq("environment", environment)
-    .eq("product_code", HUBPASS_BUSINESS_BASE_PRODUCT_CODE)
+    .eq("product_code", productCode)
     .eq("is_active", true)
     .maybeSingle();
 
   if (error) throw error;
   if (!data) {
-    throw new Error("The HubPass Business Stripe test price is not registered.");
+    throw new Error(`Stripe price mapping is missing for ${productCode}.`);
   }
 
   return data;
 }
 
-async function findReusableCheckoutSession({
+async function getFirstMonthFreeDiscount(admin, environment) {
+  const { data, error } = await admin
+    .from("commerce_provider_discount_mappings")
+    .select("provider_discount_id")
+    .eq("provider", "stripe")
+    .eq("environment", environment)
+    .eq("discount_code", FIRST_MONTH_FREE_DISCOUNT_CODE)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data?.provider_discount_id) {
+    throw new Error(
+      "The HubPass Business first-month-free Stripe coupon is not registered."
+    );
+  }
+
+  return data.provider_discount_id;
+}
+
+async function validateExistingBaseTargets({
+  admin,
+  ownerUserId,
+  targets,
+}) {
+  if (!targets.length) return [];
+
+  const ids = targets.map((item) => item.hubpassBusinessSubscriptionId);
+  const { data, error } = await admin
+    .from("hubpass_business_subscriptions")
+    .select("id,assigned_business_id,status,entitlement_grant_id")
+    .eq("owner_user_id", ownerUserId)
+    .in("id", ids);
+
+  if (error) throw error;
+
+  const byId = new Map((data ?? []).map((row) => [row.id, row]));
+
+  for (const target of targets) {
+    const base = byId.get(target.hubpassBusinessSubscriptionId);
+    if (!base || base.status !== "active" || !base.entitlement_grant_id) {
+      const error = new Error(
+        "Additional locations require an active HubPass Business base entitlement."
+      );
+      error.statusCode = 409;
+      error.code = "ACTIVE_BASE_REQUIRED_FOR_LOCATION";
+      throw error;
+    }
+  }
+
+  return data ?? [];
+}
+
+async function findReusableOrExpireOpenCheckout({
   admin,
   stripe,
   ownerUserId,
   environment,
+  cartFingerprint,
 }) {
   const { data, error } = await admin
     .from("commerce_checkout_sessions")
-    .select("id,provider_checkout_session_id,status,expires_at")
+    .select(
+      "id,provider_checkout_session_id,status,expires_at,request_context"
+    )
     .eq("owner_user_id", ownerUserId)
     .eq("provider", "stripe")
     .eq("environment", environment)
-    .eq("product_code", HUBPASS_BUSINESS_BASE_PRODUCT_CODE)
+    .in("product_code", [
+      HUBPASS_BUSINESS_BASE_PRODUCT_CODE,
+      ADDITIONAL_LOCATION_PRODUCT_CODE,
+    ])
     .eq("status", "open")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -146,7 +256,16 @@ async function findReusableCheckoutSession({
     );
 
     if (session.status === "open" && session.url) {
-      return session;
+      if (data.request_context?.cart_fingerprint === cartFingerprint) {
+        return session;
+      }
+
+      await stripe.checkout.sessions.expire(session.id);
+      await admin
+        .from("commerce_checkout_sessions")
+        .update({ status: "expired" })
+        .eq("id", data.id);
+      return null;
     }
 
     const nextStatus = session.status === "complete" ? "complete" : "expired";
@@ -159,13 +278,36 @@ async function findReusableCheckoutSession({
       })
       .eq("id", data.id);
   } catch (error) {
-    console.warn("YardHub could not reuse an older Stripe Checkout Session.", {
+    console.warn("YardHub could not inspect an older Stripe Checkout Session.", {
       checkoutSessionId: data.provider_checkout_session_id,
       message: error?.message,
     });
   }
 
   return null;
+}
+
+
+async function getCurrentHubPassCounts(userClient) {
+  const { data, error } = await userClient.rpc(
+    "get_my_business_entitlements"
+  );
+
+  if (error) throw error;
+
+  const rows = Array.isArray(data) ? data : [];
+  const activeRows = rows.filter(
+    (item) => item?.entitlement_status === "active"
+  );
+
+  return {
+    activeBaseCount: activeRows.length,
+    activeAdditionalLocationCount: activeRows.reduce(
+      (sum, item) =>
+        sum + Number(item?.additional_location_entitlement_count ?? 0),
+      0
+    ),
+  };
 }
 
 async function getOrCreateStripeCustomer({
@@ -231,44 +373,26 @@ export default async function handler(req, res) {
 
   try {
     const user = await requireAuthenticatedUser(req);
+    const userClient = getSupabaseUserClient(req);
     const admin = getSupabaseAdminClient();
     const stripe = getStripeServerClient();
     const environment = getCommerceEnvironment();
     const siteOrigin = getYardHubSiteOrigin(req);
+    const checkoutRequest = normalizeCheckoutRequest(req.body ?? {});
+    const cartFingerprint = checkoutFingerprint(checkoutRequest);
 
-    const history = await getBaseSubscriptionHistory(
-      admin,
-      user.id,
-      environment
-    );
-
-    if (hasCurrentBaseSubscription(history)) {
-      return sendJson(res, 409, {
-        error:
-          "This YardHub account already has a current HubPass Business subscription.",
-        code: "HUBPASS_BUSINESS_ALREADY_CURRENT",
-      });
-    }
-
-    const checkoutIsSyncing = await hasRecentCompletedCheckout({
+    await validateExistingBaseTargets({
       admin,
       ownerUserId: user.id,
-      environment,
+      targets: checkoutRequest.existingBaseAdditions,
     });
 
-    if (checkoutIsSyncing) {
-      return sendJson(res, 409, {
-        error:
-          "Stripe Checkout is complete and YardHub is still synchronizing Business access. Refresh status in a moment.",
-        code: "HUBPASS_BUSINESS_SYNCING",
-      });
-    }
-
-    const reusableSession = await findReusableCheckoutSession({
+    const reusableSession = await findReusableOrExpireOpenCheckout({
       admin,
       stripe,
       ownerUserId: user.id,
       environment,
+      cartFingerprint,
     });
 
     if (reusableSession) {
@@ -278,78 +402,164 @@ export default async function handler(req, res) {
       });
     }
 
-    const mapping = await getActivePriceMapping(admin, environment);
+    const firstMonthFreeEligibility =
+      await getHubPassBusinessFirstMonthFreeEligibility({
+        admin,
+        ownerUserId: user.id,
+        environment,
+      });
+
+    const currentCounts = await getCurrentHubPassCounts(userClient);
+
+    const firstMonthFree =
+      checkoutRequest.baseQuantity > 0 && firstMonthFreeEligibility.eligible;
+    const expectedBaseCount =
+      currentCounts.activeBaseCount + checkoutRequest.baseQuantity;
+    const expectedAdditionalLocationCount =
+      currentCounts.activeAdditionalLocationCount +
+      checkoutRequest.additionalLocationQuantity;
+
+    const [baseMapping, locationMapping] = await Promise.all([
+      checkoutRequest.baseQuantity > 0
+        ? getActivePriceMapping(
+            admin,
+            environment,
+            HUBPASS_BUSINESS_BASE_PRODUCT_CODE
+          )
+        : Promise.resolve(null),
+      checkoutRequest.additionalLocationQuantity > 0
+        ? getActivePriceMapping(
+            admin,
+            environment,
+            ADDITIONAL_LOCATION_PRODUCT_CODE
+          )
+        : Promise.resolve(null),
+    ]);
+
+    const firstMonthFreeCoupon = firstMonthFree
+      ? await getFirstMonthFreeDiscount(admin, environment)
+      : null;
+
     const providerCustomerId = await getOrCreateStripeCustomer({
       admin,
       stripe,
       user,
       environment,
     });
-    const trialEligible = isTrialEligible(history);
+
+    const batchKey = randomUUID();
     const idempotencyKey = [
       "yardhub",
       environment,
       user.id,
-      HUBPASS_BUSINESS_BASE_PRODUCT_CODE,
-      randomUUID(),
+      "hubpass-business-batch",
+      batchKey,
     ].join(":");
+
+    const lineItems = [];
+    if (baseMapping) {
+      lineItems.push({
+        price: baseMapping.provider_price_id,
+        quantity: checkoutRequest.baseQuantity,
+      });
+    }
+    if (locationMapping) {
+      lineItems.push({
+        price: locationMapping.provider_price_id,
+        quantity: checkoutRequest.additionalLocationQuantity,
+      });
+    }
+
+    const allocationPlan = {
+      version: 1,
+      new_businesses: checkoutRequest.businesses.map((item) => ({
+        base_unit_index: item.baseUnitIndex,
+        additional_location_count: item.additionalLocations,
+      })),
+      existing_bases: checkoutRequest.existingBaseAdditions.map((item) => ({
+        hubpass_business_subscription_id:
+          item.hubpassBusinessSubscriptionId,
+        additional_location_count: item.additionalLocations,
+      })),
+    };
 
     const subscriptionData = {
       metadata: {
         yardhub_user_id: user.id,
-        yardhub_product_code: HUBPASS_BUSINESS_BASE_PRODUCT_CODE,
         yardhub_environment: environment,
-        yardhub_trial_eligible: trialEligible ? "true" : "false",
+        yardhub_batch_key: batchKey,
+        yardhub_base_quantity: String(checkoutRequest.baseQuantity),
+        yardhub_additional_location_quantity: String(
+          checkoutRequest.additionalLocationQuantity
+        ),
+        yardhub_first_month_free: firstMonthFree ? "true" : "false",
       },
     };
 
-    if (trialEligible) {
-      subscriptionData.trial_end = oneCalendarMonthFromNowUnix();
+    const sessionParams = {
+      mode: "subscription",
+      origin_context: "web",
+      payment_method_collection: "always",
+      customer: providerCustomerId,
+      client_reference_id: user.id,
+      line_items: lineItems,
+      metadata: {
+        yardhub_user_id: user.id,
+        yardhub_environment: environment,
+        yardhub_batch_key: batchKey,
+      },
+      subscription_data: subscriptionData,
+      success_url: `${siteOrigin}/account/hubpass-business-activated?session_id={CHECKOUT_SESSION_ID}&free_month=${
+        firstMonthFree ? "1" : "0"
+      }&mode=${
+        checkoutRequest.baseQuantity > 0 ? "businesses" : "locations"
+      }&expected_bases=${expectedBaseCount}&expected_locations=${expectedAdditionalLocationCount}`,
+      cancel_url: `${siteOrigin}/account/subscriptions?checkout=cancelled`,
+    };
+
+    if (firstMonthFreeCoupon) {
+      sessionParams.discounts = [{ coupon: firstMonthFreeCoupon }];
     }
 
     createdSession = await stripe.checkout.sessions.create(
-      {
-        mode: "subscription",
-        origin_context: "web",
-        payment_method_collection: "always",
-        customer: providerCustomerId,
-        client_reference_id: user.id,
-        line_items: [
-          {
-            price: mapping.provider_price_id,
-            quantity: 1,
-          },
-        ],
-        metadata: {
-          yardhub_user_id: user.id,
-          yardhub_product_code: HUBPASS_BUSINESS_BASE_PRODUCT_CODE,
-          yardhub_environment: environment,
-        },
-        subscription_data: subscriptionData,
-        success_url: `${siteOrigin}/account/hubpass-business-activated?session_id={CHECKOUT_SESSION_ID}&trial=${trialEligible ? "1" : "0"}`,
-        cancel_url: `${siteOrigin}/account/subscriptions?checkout=cancelled`,
-      },
+      sessionParams,
       { idempotencyKey }
     );
 
     const providerCustomerFromSession =
       stripeObjectId(createdSession.customer) || providerCustomerId;
+    const primaryProductCode =
+      checkoutRequest.baseQuantity > 0
+        ? HUBPASS_BUSINESS_BASE_PRODUCT_CODE
+        : ADDITIONAL_LOCATION_PRODUCT_CODE;
+    const primaryQuantity =
+      checkoutRequest.baseQuantity > 0
+        ? checkoutRequest.baseQuantity
+        : checkoutRequest.additionalLocationQuantity;
 
     const { error: registerError } = await admin.rpc(
       "commerce_register_stripe_checkout_session",
       {
         p_owner_user_id: user.id,
         p_environment: environment,
-        p_product_code: HUBPASS_BUSINESS_BASE_PRODUCT_CODE,
+        p_product_code: primaryProductCode,
         p_provider_checkout_session_id: createdSession.id,
         p_idempotency_key: idempotencyKey,
         p_provider_customer_id: providerCustomerFromSession,
-        p_quantity: 1,
+        p_quantity: primaryQuantity,
         p_expires_at: unixSecondsToIso(createdSession.expires_at),
         p_request_context: {
           source: "yardhub_website",
-          route: "/account/subscriptions",
-          trial_eligible: trialEligible,
+          route: "/account/hubpass-business-checkout",
+          batch_key: batchKey,
+          cart_fingerprint: cartFingerprint,
+          base_quantity: checkoutRequest.baseQuantity,
+          additional_location_quantity:
+            checkoutRequest.additionalLocationQuantity,
+          first_month_free_applied: firstMonthFree,
+          first_month_free_next_eligible_at:
+            firstMonthFreeEligibility.nextEligibleAt,
+          allocation_plan: allocationPlan,
         },
       }
     );
@@ -370,20 +580,27 @@ export default async function handler(req, res) {
     return sendJson(res, 200, {
       url: createdSession.url,
       reused: false,
+      firstMonthFree,
+      baseQuantity: checkoutRequest.baseQuantity,
+      additionalLocationQuantity: checkoutRequest.additionalLocationQuantity,
+      nextFirstMonthFreeEligibleAt:
+        firstMonthFreeEligibility.nextEligibleAt,
     });
   } catch (error) {
     const statusCode = Number(error?.statusCode) || 500;
 
     console.error("YardHub Stripe Checkout Session error", {
       message: error?.message,
+      code: error?.code,
       checkoutSessionId: createdSession?.id ?? null,
     });
 
     return sendJson(res, statusCode, {
       error:
-        statusCode === 401
+        statusCode === 401 || statusCode === 409
           ? error.message
           : "YardHub could not start Stripe Checkout. Please try again.",
+      code: error?.code ?? null,
     });
   }
 }

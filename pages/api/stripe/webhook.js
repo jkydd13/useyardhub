@@ -14,6 +14,9 @@ export const config = {
   },
 };
 
+const ADDITIONAL_LOCATION_PRODUCT_CODE =
+  "HUBPASS_BUSINESS_ADDITIONAL_LOCATION";
+
 const SUBSCRIPTION_EVENT_TYPES = new Set([
   "customer.subscription.created",
   "customer.subscription.updated",
@@ -36,6 +39,11 @@ function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     String(value ?? "")
   );
+}
+
+function asWholeNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isInteger(number) ? number : fallback;
 }
 
 async function claimWebhookEvent(admin, event, environment) {
@@ -70,21 +78,28 @@ async function finishWebhookEvent(admin, eventId, outcome, errorMessage = null) 
   if (error) throw error;
 }
 
-async function getBasePriceMapping(admin, environment) {
+async function getHubPassMappings(admin, environment) {
   const { data, error } = await admin
     .from("commerce_provider_price_mappings")
-    .select("provider_product_id,provider_price_id")
+    .select("product_code,provider_product_id,provider_price_id")
     .eq("provider", "stripe")
     .eq("environment", environment)
-    .eq("product_code", HUBPASS_BUSINESS_BASE_PRODUCT_CODE)
     .eq("is_active", true)
-    .maybeSingle();
+    .in("product_code", [
+      HUBPASS_BUSINESS_BASE_PRODUCT_CODE,
+      ADDITIONAL_LOCATION_PRODUCT_CODE,
+    ]);
 
   if (error) throw error;
-  return data ?? null;
+
+  const mappings = new Map((data ?? []).map((row) => [row.product_code, row]));
+  return {
+    base: mappings.get(HUBPASS_BUSINESS_BASE_PRODUCT_CODE) ?? null,
+    location: mappings.get(ADDITIONAL_LOCATION_PRODUCT_CODE) ?? null,
+  };
 }
 
-function findBaseSubscriptionItem(subscription, mapping) {
+function findSubscriptionItem(subscription, mapping) {
   if (!mapping) return null;
 
   return (subscription?.items?.data ?? []).find((item) => {
@@ -132,18 +147,139 @@ async function resolveOwnerUserId({
   return null;
 }
 
-async function syncHubPassBusinessBase({
+async function getCheckoutContext({
+  admin,
+  ownerUserId,
+  environment,
+  providerCheckoutSessionId,
+  batchKey,
+}) {
+  if (providerCheckoutSessionId) {
+    const { data, error } = await admin
+      .from("commerce_checkout_sessions")
+      .select("request_context")
+      .eq("provider", "stripe")
+      .eq("environment", environment)
+      .eq("provider_checkout_session_id", providerCheckoutSessionId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data?.request_context) return data.request_context;
+  }
+
+  if (batchKey) {
+    const { data, error } = await admin.rpc(
+      "commerce_get_checkout_context_by_batch_key",
+      {
+        p_owner_user_id: ownerUserId,
+        p_environment: environment,
+        p_batch_key: batchKey,
+      }
+    );
+
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row?.request_context) return row.request_context;
+  }
+
+  return null;
+}
+
+function buildLocationAllocations(requestContext, baseUnits) {
+  const plan = requestContext?.allocation_plan;
+  if (!plan || Number(plan.version) !== 1) return [];
+
+  const baseByUnit = new Map(
+    (baseUnits ?? []).map((row) => [
+      Number(row.source_unit_index),
+      row.hubpass_business_subscription_id,
+    ])
+  );
+
+  const allocations = [];
+  let locationUnitIndex = 1;
+
+  for (const item of Array.isArray(plan.new_businesses)
+    ? plan.new_businesses
+    : []) {
+    const baseUnitIndex = asWholeNumber(item?.base_unit_index, 0);
+    const count = asWholeNumber(item?.additional_location_count, 0);
+    const target = baseByUnit.get(baseUnitIndex);
+
+    if (count > 0 && !target) {
+      throw new Error(
+        `Stacked checkout could not resolve base unit ${baseUnitIndex}.`
+      );
+    }
+
+    for (let i = 0; i < count; i += 1) {
+      allocations.push({
+        location_unit_index: locationUnitIndex,
+        hubpass_business_subscription_id: target,
+      });
+      locationUnitIndex += 1;
+    }
+  }
+
+  for (const item of Array.isArray(plan.existing_bases)
+    ? plan.existing_bases
+    : []) {
+    const target = String(
+      item?.hubpass_business_subscription_id ?? ""
+    ).trim();
+    const count = asWholeNumber(item?.additional_location_count, 0);
+
+    if (count > 0 && !isUuid(target)) {
+      throw new Error(
+        "Stacked checkout contains an invalid existing base allocation."
+      );
+    }
+
+    for (let i = 0; i < count; i += 1) {
+      allocations.push({
+        location_unit_index: locationUnitIndex,
+        hubpass_business_subscription_id: target,
+      });
+      locationUnitIndex += 1;
+    }
+  }
+
+  const expected = asWholeNumber(
+    requestContext?.additional_location_quantity,
+    allocations.length
+  );
+
+  if (allocations.length !== expected) {
+    throw new Error(
+      "Stacked checkout location allocation count does not match Stripe quantity."
+    );
+  }
+
+  return allocations;
+}
+
+function itemPeriodStart(item, subscription) {
+  return item?.current_period_start ?? subscription?.current_period_start ?? null;
+}
+
+function itemPeriodEnd(item, subscription) {
+  return item?.current_period_end ?? subscription?.current_period_end ?? null;
+}
+
+async function syncHubPassBundle({
   admin,
   stripe,
   environment,
   subscription,
   webhookEventId,
   fallbackUserId,
+  requestContext,
 }) {
-  const mapping = await getBasePriceMapping(admin, environment);
-  const item = findBaseSubscriptionItem(subscription, mapping);
+  const mappings = await getHubPassMappings(admin, environment);
+  const baseItem = findSubscriptionItem(subscription, mappings.base);
+  const locationItem = findSubscriptionItem(subscription, mappings.location);
 
-  if (!item) {
+  if (!baseItem && !locationItem) {
     return { handled: false };
   }
 
@@ -160,44 +296,107 @@ async function syncHubPassBusinessBase({
   }
 
   const providerCustomerId = stripeObjectId(subscription.customer);
-  const providerProductId = stripeObjectId(item.price?.product);
-  const providerPriceId = stripeObjectId(item.price);
-
-  if (!providerCustomerId || !providerProductId || !providerPriceId) {
-    throw new Error("Stripe subscription identifiers are incomplete.");
+  if (!providerCustomerId) {
+    throw new Error("Stripe subscription customer identifier is missing.");
   }
 
-  const currentPeriodStart =
-    item.current_period_start ?? subscription.current_period_start ?? null;
-  const currentPeriodEnd =
-    item.current_period_end ?? subscription.current_period_end ?? null;
+  let baseUnits = [];
 
-  const { data, error } = await admin.rpc(
-    "commerce_sync_hubpass_business_base_subscription",
-    {
-      p_owner_user_id: ownerUserId,
-      p_environment: environment,
-      p_provider_customer_id: providerCustomerId,
-      p_provider_subscription_id: subscription.id,
-      p_provider_subscription_item_id: item.id,
-      p_provider_product_id: providerProductId,
-      p_provider_price_id: providerPriceId,
-      p_provider_subscription_status: subscription.status,
-      p_current_period_start: unixSecondsToIso(currentPeriodStart),
-      p_current_period_end: unixSecondsToIso(currentPeriodEnd),
-      p_trial_ends_at: unixSecondsToIso(subscription.trial_end),
-      p_grace_period_ends_at: null,
-      p_cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
-      p_cancelled_at: unixSecondsToIso(subscription.canceled_at),
-      p_started_at: unixSecondsToIso(
-        subscription.start_date ?? subscription.created
-      ),
-      p_commerce_webhook_event_id: webhookEventId,
+  if (baseItem) {
+    const providerProductId = stripeObjectId(baseItem.price?.product);
+    const providerPriceId = stripeObjectId(baseItem.price);
+
+    if (!providerProductId || !providerPriceId || !baseItem.id) {
+      throw new Error("Stripe HubPass Business base identifiers are incomplete.");
     }
-  );
 
-  if (error) throw error;
-  return { handled: true, result: data };
+    const { data, error } = await admin.rpc(
+      "commerce_sync_hubpass_business_base_units",
+      {
+        p_owner_user_id: ownerUserId,
+        p_environment: environment,
+        p_provider_customer_id: providerCustomerId,
+        p_provider_subscription_id: subscription.id,
+        p_provider_subscription_item_id: baseItem.id,
+        p_provider_product_id: providerProductId,
+        p_provider_price_id: providerPriceId,
+        p_quantity: Number(baseItem.quantity ?? 1),
+        p_provider_subscription_status: subscription.status,
+        p_current_period_start: unixSecondsToIso(
+          itemPeriodStart(baseItem, subscription)
+        ),
+        p_current_period_end: unixSecondsToIso(
+          itemPeriodEnd(baseItem, subscription)
+        ),
+        p_trial_ends_at: unixSecondsToIso(subscription.trial_end),
+        p_grace_period_ends_at: null,
+        p_cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+        p_cancelled_at: unixSecondsToIso(subscription.canceled_at),
+        p_started_at: unixSecondsToIso(
+          subscription.start_date ?? subscription.created
+        ),
+        p_commerce_webhook_event_id: webhookEventId,
+      }
+    );
+
+    if (error) throw error;
+    baseUnits = Array.isArray(data) ? data : data ? [data] : [];
+  }
+
+  if (locationItem) {
+    const providerProductId = stripeObjectId(locationItem.price?.product);
+    const providerPriceId = stripeObjectId(locationItem.price);
+
+    if (!providerProductId || !providerPriceId || !locationItem.id) {
+      throw new Error(
+        "Stripe HubPass Business additional-location identifiers are incomplete."
+      );
+    }
+
+    const isTerminal = [
+      "canceled",
+      "cancelled",
+      "incomplete_expired",
+    ].includes(String(subscription.status ?? "").toLowerCase());
+
+    const allocations = isTerminal
+      ? []
+      : buildLocationAllocations(requestContext, baseUnits);
+
+    const { error } = await admin.rpc(
+      "commerce_sync_hubpass_business_location_units",
+      {
+        p_owner_user_id: ownerUserId,
+        p_environment: environment,
+        p_provider_customer_id: providerCustomerId,
+        p_provider_subscription_id: subscription.id,
+        p_provider_subscription_item_id: locationItem.id,
+        p_provider_product_id: providerProductId,
+        p_provider_price_id: providerPriceId,
+        p_quantity: Number(locationItem.quantity ?? 1),
+        p_provider_subscription_status: subscription.status,
+        p_allocations: allocations,
+        p_current_period_start: unixSecondsToIso(
+          itemPeriodStart(locationItem, subscription)
+        ),
+        p_current_period_end: unixSecondsToIso(
+          itemPeriodEnd(locationItem, subscription)
+        ),
+        p_trial_ends_at: unixSecondsToIso(subscription.trial_end),
+        p_grace_period_ends_at: null,
+        p_cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+        p_cancelled_at: unixSecondsToIso(subscription.canceled_at),
+        p_started_at: unixSecondsToIso(
+          subscription.start_date ?? subscription.created
+        ),
+        p_commerce_webhook_event_id: webhookEventId,
+      }
+    );
+
+    if (error) throw error;
+  }
+
+  return { handled: true };
 }
 
 async function retrieveSubscription(stripe, subscriptionId) {
@@ -250,14 +449,29 @@ async function processStripeEvent({
     if (!subscriptionId) return "processed";
 
     const subscription = await retrieveSubscription(stripe, subscriptionId);
-    const result = await syncHubPassBusinessBase({
+    const fallbackUserId =
+      session.metadata?.yardhub_user_id ?? session.client_reference_id;
+    const ownerUserId = isUuid(fallbackUserId)
+      ? fallbackUserId
+      : subscription.metadata?.yardhub_user_id;
+    const requestContext = isUuid(ownerUserId)
+      ? await getCheckoutContext({
+          admin,
+          ownerUserId,
+          environment,
+          providerCheckoutSessionId: session.id,
+          batchKey: subscription.metadata?.yardhub_batch_key,
+        })
+      : null;
+
+    const result = await syncHubPassBundle({
       admin,
       stripe,
       environment,
       subscription,
       webhookEventId,
-      fallbackUserId:
-        session.metadata?.yardhub_user_id ?? session.client_reference_id,
+      fallbackUserId,
+      requestContext,
     });
 
     return result.handled ? "processed" : "ignored";
@@ -270,13 +484,32 @@ async function processStripeEvent({
       subscription = await retrieveSubscription(stripe, subscription.id);
     }
 
-    const result = await syncHubPassBusinessBase({
+    const ownerUserId = await resolveOwnerUserId({
+      admin,
+      stripe,
+      environment,
+      subscription,
+      fallbackUserId: null,
+    });
+
+    const requestContext = ownerUserId
+      ? await getCheckoutContext({
+          admin,
+          ownerUserId,
+          environment,
+          providerCheckoutSessionId: null,
+          batchKey: subscription.metadata?.yardhub_batch_key,
+        })
+      : null;
+
+    const result = await syncHubPassBundle({
       admin,
       stripe,
       environment,
       subscription,
       webhookEventId,
-      fallbackUserId: null,
+      fallbackUserId: ownerUserId,
+      requestContext,
     });
 
     return result.handled ? "processed" : "ignored";
