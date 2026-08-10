@@ -131,8 +131,17 @@ function normalizeCheckoutRequest(body) {
   };
 }
 
-function checkoutFingerprint(request) {
+function normalizedOrigin(value) {
+  try {
+    return new URL(String(value ?? "")).origin;
+  } catch {
+    return "";
+  }
+}
+
+function checkoutFingerprint(request, siteOrigin) {
   const stable = JSON.stringify({
+    sourceOrigin: normalizedOrigin(siteOrigin),
     businesses: request.businesses.map((item) => ({
       baseUnitIndex: item.baseUnitIndex,
       additionalLocations: item.additionalLocations,
@@ -220,6 +229,7 @@ async function findReusableOrExpireOpenCheckout({
   ownerUserId,
   environment,
   cartFingerprint,
+  siteOrigin,
 }) {
   const { data, error } = await admin
     .from("commerce_checkout_sessions")
@@ -256,7 +266,12 @@ async function findReusableOrExpireOpenCheckout({
     );
 
     if (session.status === "open" && session.url) {
-      if (data.request_context?.cart_fingerprint === cartFingerprint) {
+      const sameCart =
+        data.request_context?.cart_fingerprint === cartFingerprint;
+      const sameOrigin =
+        normalizedOrigin(session.success_url) === normalizedOrigin(siteOrigin);
+
+      if (sameCart && sameOrigin) {
         return session;
       }
 
@@ -379,7 +394,7 @@ export default async function handler(req, res) {
     const environment = getCommerceEnvironment();
     const siteOrigin = getYardHubSiteOrigin(req);
     const checkoutRequest = normalizeCheckoutRequest(req.body ?? {});
-    const cartFingerprint = checkoutFingerprint(checkoutRequest);
+    const cartFingerprint = checkoutFingerprint(checkoutRequest, siteOrigin);
 
     await validateExistingBaseTargets({
       admin,
@@ -393,6 +408,7 @@ export default async function handler(req, res) {
       ownerUserId: user.id,
       environment,
       cartFingerprint,
+      siteOrigin,
     });
 
     if (reusableSession) {
@@ -551,6 +567,7 @@ export default async function handler(req, res) {
         p_request_context: {
           source: "yardhub_website",
           route: "/account/hubpass-business-checkout",
+          source_origin: normalizedOrigin(siteOrigin),
           batch_key: batchKey,
           cart_fingerprint: cartFingerprint,
           base_quantity: checkoutRequest.baseQuantity,
