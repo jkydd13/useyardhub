@@ -203,7 +203,7 @@ export default function HubPassBusinessCheckoutPage() {
         <title>HubPass Business Checkout | YardHub</title>
         <meta
           name="description"
-          content="Stack HubPass Business subscriptions and additional locations into one secure Stripe Checkout."
+          content="Configure HubPass Businesses and additional locations in one secure Stripe Checkout."
         />
       </Head>
 
@@ -218,12 +218,12 @@ export default function HubPassBusinessCheckoutPage() {
             <h1 style={styles.h1}>
               {locationOnlyMode
                 ? "Add locations to HubPass Business"
-                : "Stack your Business subscriptions"}
+                : "Configure Your HubPass Businesses"}
             </h1>
             <p style={styles.sub}>
               {locationOnlyMode
                 ? "Additional active locations are $14.99/month each and stay attached to this HubPass Business base."
-                : "Add every new Business you want in this batch. Each $29.99/month base includes one active location, and you can attach additional $14.99/month locations before opening Stripe."}
+                : "Add the businesses and locations you want to activate in this checkout. Each HubPass Business is $29.99/month and includes one active location. Additional locations are $14.99/month each."}
             </p>
           </section>
 
